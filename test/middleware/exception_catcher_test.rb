@@ -34,7 +34,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
     assert_equal 1, MarcoButterflyNet.captured_exceptions.length
     captured = MarcoButterflyNet.captured_exceptions.first
     assert_equal error, captured[:exception]
-    assert_instance_of Time, captured[:captured_at]
+    assert_respond_to captured[:captured_at], :to_time
   end
 
   test "middleware captures exception with env context" do

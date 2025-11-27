@@ -11,11 +11,13 @@ module MarcoButterflyNet
     def capture_exception(exception, env)
       # Store exception data for the error tracking dashboard
       # This is a hook point for future implementation
-      captured_exceptions << {
-        exception: exception,
-        env: env,
-        captured_at: Time.now
-      }
+      mutex.synchronize do
+        captured_exceptions << {
+          exception: exception,
+          env: env,
+          captured_at: Time.current
+        }
+      end
     end
 
     # Returns the list of captured exceptions (for dashboard display)
@@ -26,7 +28,15 @@ module MarcoButterflyNet
 
     # Clears all captured exceptions
     def clear_captured_exceptions
-      @captured_exceptions = []
+      mutex.synchronize do
+        @captured_exceptions = []
+      end
+    end
+
+    private
+
+    def mutex
+      @mutex ||= Mutex.new
     end
   end
 end
