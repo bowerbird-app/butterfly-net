@@ -1,0 +1,13 @@
+.git
+.devcontainer
+.vscode
+.github
+node_modules
+tmp
+log
+*.log
+.DS_Store
+coverage
+test/dummy/storage/*.sqlite3
+test/dummy/tmp
+test/dummy/log

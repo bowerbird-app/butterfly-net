@@ -6,6 +6,7 @@ gemspec
 gem "puma"
 
 gem "sqlite3"
+gem "pg" # PostgreSQL adapter for devcontainer
 
 gem "propshaft"
 
