@@ -15,6 +15,10 @@ Rails.application.configure do
   # Allow requests from GitHub Codespaces
   config.hosts << /[a-z0-9-]+\.app\.github\.dev/
 
+  # Disable CSRF Origin check in Codespaces to avoid InvalidAuthenticityToken errors
+  # when accessing via both localhost:3000 and *.app.github.dev URLs
+  config.action_controller.forgery_protection_origin_check = false if ENV["CODESPACES"] == "true"
+
   # Enable server timing.
   config.server_timing = true
 
