@@ -9,6 +9,10 @@
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
 
+  "containerEnv": {
+    "CODESPACES": "true"
+  },
+
   "customizations": {
     "vscode": {
       "extensions": [
