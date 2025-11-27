@@ -1,14 +1,21 @@
-FROM mcr.microsoft.com/devcontainers/ruby:1-3.3-bullseye
+ARG RUBY_VERSION=3.3.6
+FROM docker.io/library/ruby:${RUBY_VERSION}-slim
 
-# Install PostgreSQL client
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends postgresql-client \
-    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+# Install essential packages for Rails development
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+    build-essential \
+    curl \
+    git \
+    libpq-dev \
+    libyaml-dev \
+    libvips \
+    pkg-config \
+    postgresql-client \
+    nodejs \
+    npm && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# Install Node.js (for Rails assets)
-RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
-    && apt-get install -y nodejs \
-    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
-
-# Set up bundle path
+# Set environment for development
+ENV RAILS_ENV=development
 ENV BUNDLE_PATH=/usr/local/bundle
