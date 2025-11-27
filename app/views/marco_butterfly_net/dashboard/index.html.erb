@@ -1,0 +1,47 @@
+<div class="mbn-dashboard">
+  <header class="mbn-header">
+    <h1>Error Tracking Dashboard</h1>
+    <p class="mbn-subtitle">Total errors: <%= @total_count %></p>
+  </header>
+
+  <% if @error_logs.empty? %>
+    <div class="mbn-empty-state">
+      <p>No errors recorded yet.</p>
+    </div>
+  <% else %>
+    <table class="mbn-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Exception</th>
+          <th>Message</th>
+          <th>Time</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @error_logs.each do |error_log| %>
+          <tr>
+            <td><%= error_log.id %></td>
+            <td class="mbn-exception-class"><%= error_log.exception_class %></td>
+            <td class="mbn-message"><%= truncate(error_log.message, length: 80) %></td>
+            <td class="mbn-timestamp"><%= error_log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+            <td>
+              <%= link_to "View Details", dashboard_path(error_log), class: "mbn-btn mbn-btn-primary" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <nav class="mbn-pagination">
+      <% if @page > 1 %>
+        <%= link_to "← Previous", dashboard_index_path(page: @page - 1), class: "mbn-btn" %>
+      <% end %>
+      <span class="mbn-page-info">Page <%= @page %> of <%= @total_pages %></span>
+      <% if @page < @total_pages %>
+        <%= link_to "Next →", dashboard_index_path(page: @page + 1), class: "mbn-btn" %>
+      <% end %>
+    </nav>
+  <% end %>
+</div>

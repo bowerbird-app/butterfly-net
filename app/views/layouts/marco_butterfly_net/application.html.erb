@@ -1,17 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Marco butterfly net</title>
+  <title>MarcoButterflyNet - Error Tracking Dashboard</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
 
   <%= yield :head %>
 
-  <%= stylesheet_link_tag    "marco_butterfly_net/application", media: "all" %>
+  <%= stylesheet_link_tag "marco_butterfly_net/application", media: "all" %>
 </head>
-<body>
-
-<%= yield %>
-
+<body class="mbn-body">
+  <div class="mbn-container">
+    <%= yield %>
+  </div>
 </body>
 </html>
