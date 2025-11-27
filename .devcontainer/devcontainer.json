@@ -1,0 +1,43 @@
+{
+  "name": "MarcoButterflyNet Rails Engine",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "containerEnv": {
+    "CODESPACES": "true"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Shopify.ruby-lsp",
+        "bung87.rails",
+        "aki77.rails-db-schema",
+        "hridoy.rails-snippets",
+        "misogi.ruby-rubocop",
+        "kaiwood.endwise",
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.tabSize": 2,
+        "ruby.lint": {
+          "rubocop": true
+        },
+        "ruby.format": "rubocop"
+      }
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "cd test/dummy && bin/rails server -b 0.0.0.0",
+  "forwardPorts": [
+    3000,
+    5432,
+    6379
+  ],
+  "remoteUser": "vscode"
+}
