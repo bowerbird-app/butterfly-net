@@ -4,3 +4,5 @@ vendor/bundle
 *.log
 tmp/
 pkg/
+test/dummy/storage/
+test/dummy/db/schema.rb

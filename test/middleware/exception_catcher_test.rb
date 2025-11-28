@@ -63,4 +63,37 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
 
     assert_equal 3, MarcoButterflyNet.captured_exceptions.length
   end
+
+  test "filters sensitive parameters from request params" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    params = {
+      "username" => "john",
+      "password" => "secret123",
+      "password_confirmation" => "secret123",
+      "api_key" => "abc123",
+      "data" => { "token" => "xyz789", "name" => "test" }
+    }
+
+    filtered = middleware.send(:filter_params, params)
+
+    assert_equal "john", filtered["username"]
+    assert_equal "[FILTERED]", filtered["password"]
+    assert_equal "[FILTERED]", filtered["password_confirmation"]
+    assert_equal "[FILTERED]", filtered["api_key"]
+    assert_equal "[FILTERED]", filtered["data"]["token"]
+    assert_equal "test", filtered["data"]["name"]
+  end
+
+  test "filters sensitive parameters from query string" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    query_string = "username=john&password=secret123&token=abc"
+
+    filtered = middleware.send(:filter_query_string, query_string)
+
+    assert_includes filtered, "username=john"
+    assert_includes filtered, "password=[FILTERED]"
+    assert_includes filtered, "token=[FILTERED]"
+  end
 end

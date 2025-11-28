@@ -1,0 +1,58 @@
+<div class="mbn-dashboard">
+  <header class="mbn-header">
+    <h1>Error Details</h1>
+    <%= link_to "← Back to Dashboard", dashboard_index_path, class: "mbn-btn" %>
+  </header>
+
+  <div class="mbn-error-detail">
+    <section class="mbn-section">
+      <h2>Exception Information</h2>
+      <dl class="mbn-definition-list">
+        <dt>ID</dt>
+        <dd><%= @error_log.id %></dd>
+
+        <dt>Exception Class</dt>
+        <dd class="mbn-exception-class"><%= @error_log.exception_class %></dd>
+
+        <dt>Message</dt>
+        <dd class="mbn-message-full"><%= @error_log.message %></dd>
+
+        <dt>Occurred At</dt>
+        <dd><%= @error_log.created_at.strftime("%Y-%m-%d %H:%M:%S %Z") %></dd>
+      </dl>
+    </section>
+
+    <section class="mbn-section">
+      <h2>Request Details</h2>
+      <dl class="mbn-definition-list">
+        <% params_hash = @error_log.params_hash %>
+        <dt>Path</dt>
+        <dd><%= params_hash["path"] || params_hash[:path] || "N/A" %></dd>
+
+        <dt>Method</dt>
+        <dd><%= params_hash["method"] || params_hash[:method] || "N/A" %></dd>
+
+        <dt>Query String</dt>
+        <dd><%= params_hash["query_string"].presence || params_hash[:query_string].presence || "N/A" %></dd>
+
+        <dt>User Agent</dt>
+        <dd><%= @error_log.user_agent || "N/A" %></dd>
+
+        <dt>Parameters</dt>
+        <dd>
+          <pre class="mbn-code"><%= JSON.pretty_generate(params_hash["params"] || params_hash[:params] || {}) %></pre>
+        </dd>
+      </dl>
+    </section>
+
+    <section class="mbn-section">
+      <h2>Stack Trace</h2>
+      <% if @error_log.backtrace_lines.any? %>
+        <pre class="mbn-backtrace"><% @error_log.backtrace_lines.each_with_index do |line, idx| %><span class="mbn-line-number"><%= idx + 1 %>.</span> <%= line %>
+<% end %></pre>
+      <% else %>
+        <p class="mbn-empty">No backtrace available</p>
+      <% end %>
+    </section>
+  </div>
+</div>
