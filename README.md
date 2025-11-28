@@ -134,19 +134,35 @@ MarcoButterflyNet is built as a mountable Rails engine using `--mountable`, prov
 
 The engine uses `isolate_namespace MarcoButterflyNet` to prevent naming conflicts with the host application's code.
 
-### Rack Middleware
+### Exception Catching
 
-The `MarcoButterflyNet::Middleware::ExceptionCatcher` is inserted at the top of the middleware stack to intercept all exceptions:
+MarcoButterflyNet catches exceptions through two complementary mechanisms:
+
+#### 1. Rack Middleware
+
+The `MarcoButterflyNet::Middleware::ExceptionCatcher` is inserted at the top of the middleware stack to intercept exceptions that propagate up:
 
 ```ruby
 # Automatically configured by the engine
 app.middleware.insert_before(0, MarcoButterflyNet::Middleware::ExceptionCatcher)
 ```
 
-This ensures exceptions are caught from the entire request/response cycle, including:
-- Controller errors
+#### 2. DebugExceptions Interceptor
+
+Rails' `ActionDispatch::DebugExceptions` middleware renders error pages without re-raising exceptions. To capture these errors (like `NameError`, `NoMethodError`, etc.), we register an interceptor:
+
+```ruby
+# Automatically configured by the engine
+ActionDispatch::DebugExceptions.register_interceptor do |request, exception|
+  MarcoButterflyNet::Middleware::ExceptionCatcher.handle_intercepted_exception(exception, request.env)
+end
+```
+
+Together, these mechanisms ensure all exceptions are caught from the entire request/response cycle, including:
+- Controller errors (e.g., `NameError`, `NoMethodError`)
 - Model/ActiveRecord errors
 - View/template errors
+- Routing errors
 - Other middleware errors
 
 ## Terminal Command
