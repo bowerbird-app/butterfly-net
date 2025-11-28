@@ -30,7 +30,7 @@ module MarcoButterflyNet
         # @param env [Hash] The Rack environment hash
         def handle_intercepted_exception(exception, env)
           handler = new(nil)
-          handler.send(:handle_exception, exception, env)
+          handler.capture_and_persist(exception, env)
         end
       end
 
@@ -39,25 +39,28 @@ module MarcoButterflyNet
       end
 
       def call(env)
-        # Mark that we're processing this request through the middleware
-        env["marco_butterfly_net.middleware_active"] = true
         @app.call(env)
       rescue Exception => exception # rubocop:disable Lint/RescueException
         # Only handle if not already handled by interceptor
         unless env["marco_butterfly_net.exception_handled"]
-          handle_exception(exception, env)
+          capture_and_persist(exception, env)
         end
         raise
       end
 
-      private
-
-      def handle_exception(exception, env)
+      # Captures and persists an exception with its environment context.
+      # This is a public method to allow the class method to call it without
+      # breaking encapsulation via send.
+      # @param exception [Exception] The exception that was raised
+      # @param env [Hash] The Rack environment hash
+      def capture_and_persist(exception, env)
         # Mark as handled to prevent duplicate logging
         env["marco_butterfly_net.exception_handled"] = true
         MarcoButterflyNet.capture_exception(exception, env)
         persist_exception(exception, env)
       end
+
+      private
 
       def persist_exception(exception, env)
         MarcoButterflyNet::ErrorLog.create!(
