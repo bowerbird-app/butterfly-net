@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    marco_butterfly_net (0.1.0)
+    marco_butterfly_net (0.2.0)
       rails (>= 8.1.1)
 
 GEM
