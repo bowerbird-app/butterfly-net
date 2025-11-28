@@ -64,6 +64,85 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
     assert_equal 3, MarcoButterflyNet.captured_exceptions.length
   end
 
+  test "middleware captures NameError" do
+    app = ->(_env) { raise NameError, "uninitialized constant MediaKitsController::MediaKi" }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+
+    assert_raises(NameError) do
+      middleware.call({})
+    end
+
+    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
+    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal NameError, captured[:exception].class
+    assert_includes captured[:exception].message, "uninitialized constant"
+  end
+
+  test "middleware captures NoMethodError" do
+    app = ->(_env) { raise NoMethodError, "undefined method `foo' for nil:NilClass" }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+
+    assert_raises(NoMethodError) do
+      middleware.call({})
+    end
+
+    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
+    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal NoMethodError, captured[:exception].class
+  end
+
+  test "middleware captures ArgumentError" do
+    app = ->(_env) { raise ArgumentError, "wrong number of arguments (given 1, expected 0)" }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+
+    assert_raises(ArgumentError) do
+      middleware.call({})
+    end
+
+    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
+    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal ArgumentError, captured[:exception].class
+  end
+
+  test "middleware captures TypeError" do
+    app = ->(_env) { raise TypeError, "no implicit conversion of Integer into String" }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+
+    assert_raises(TypeError) do
+      middleware.call({})
+    end
+
+    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
+    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal TypeError, captured[:exception].class
+  end
+
+  test "handle_intercepted_exception captures exceptions via class method" do
+    env = { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test" }
+    error = NameError.new("uninitialized constant SomeController::SomeConstant")
+
+    MarcoButterflyNet::Middleware::ExceptionCatcher.handle_intercepted_exception(error, env)
+
+    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
+    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal error, captured[:exception]
+    assert_equal env, captured[:env]
+  end
+
+  test "middleware does not duplicate capture when already handled by interceptor" do
+    error = StandardError.new("Test error")
+    app = ->(_env) { raise error }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+    env = { "marco_butterfly_net.exception_handled" => true }
+
+    assert_raises(StandardError) do
+      middleware.call(env)
+    end
+
+    # Should not capture since it was already handled
+    assert_equal 0, MarcoButterflyNet.captured_exceptions.length
+  end
+
   test "filters sensitive parameters from request params" do
     middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
 
