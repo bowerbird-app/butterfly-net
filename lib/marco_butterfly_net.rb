@@ -1,6 +1,9 @@
 require "marco_butterfly_net/version"
 require "marco_butterfly_net/engine"
+require "marco_butterfly_net/configuration"
 require "marco_butterfly_net/middleware/exception_catcher"
+require "marco_butterfly_net/services/git_blame"
+require "marco_butterfly_net/services/github_issue_creator"
 
 module MarcoButterflyNet
   class << self

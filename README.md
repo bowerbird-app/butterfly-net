@@ -165,6 +165,57 @@ Together, these mechanisms ensure all exceptions are caught from the entire requ
 - Routing errors
 - Other middleware errors
 
+## Git Blame Integration
+
+MarcoButterflyNet can identify who introduced the code that caused an error by using `git blame`. From the error dashboard, you can fetch blame information for any error, which will show:
+
+- The file and line number where the error originated
+- The commit SHA that introduced the code
+- The author's name and email
+- The date of the commit
+
+## GitHub Issue Integration
+
+MarcoButterflyNet can create GitHub issues directly from the error dashboard using the [Octokit](https://github.com/octokit/octokit.rb) gem.
+
+### Configuration
+
+Add the following to an initializer (e.g., `config/initializers/marco_butterfly_net.rb`):
+
+```ruby
+MarcoButterflyNet.configure do |config|
+  # Required: GitHub personal access token with repo scope
+  config.github_access_token = ENV["GITHUB_TOKEN"]
+  
+  # Required: Repository owner (organization or username)
+  config.github_repo_owner = "your-org"
+  
+  # Required: Repository name
+  config.github_repo_name = "your-app"
+  
+  # Optional: Path to the git repository (defaults to Rails.root)
+  config.repo_path = Rails.root.to_s
+end
+```
+
+### Creating a GitHub Token
+
+1. Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
+2. Generate a new token with the `repo` scope
+3. Store the token securely (e.g., as an environment variable)
+
+### Features
+
+When creating a GitHub issue from an error:
+
+- The issue title includes the exception class and message
+- The issue body includes:
+  - Error details (exception class, timestamp, error ID)
+  - Git blame information (if available)
+  - Request details (path, method, user agent)
+  - Stack trace (collapsed for readability)
+- Issues are automatically labeled with `bug` and `error-tracking`
+
 ## Terminal Command
 
 This engine was generated with:
