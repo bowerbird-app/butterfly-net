@@ -4,6 +4,13 @@
     <%= link_to "← Back to Dashboard", dashboard_index_path, class: "mbn-btn" %>
   </header>
 
+  <% if flash[:notice] %>
+    <div class="mbn-flash mbn-flash-notice"><%= flash[:notice] %></div>
+  <% end %>
+  <% if flash[:alert] %>
+    <div class="mbn-flash mbn-flash-alert"><%= flash[:alert] %></div>
+  <% end %>
+
   <div class="mbn-error-detail">
     <section class="mbn-section">
       <h2>Exception Information</h2>
@@ -20,6 +27,58 @@
         <dt>Occurred At</dt>
         <dd><%= @error_log.created_at.strftime("%Y-%m-%d %H:%M:%S %Z") %></dd>
       </dl>
+    </section>
+
+    <section class="mbn-section">
+      <h2>Git Blame Information</h2>
+      <% if @error_log.has_blame_info? %>
+        <dl class="mbn-definition-list">
+          <dt>File</dt>
+          <dd><code><%= @error_log.blame_file %></code></dd>
+
+          <dt>Line Number</dt>
+          <dd><%= @error_log.blame_line_number %></dd>
+
+          <dt>Commit SHA</dt>
+          <dd><code><%= @error_log.blame_commit_sha&.first(8) %></code></dd>
+
+          <dt>Author</dt>
+          <dd><%= @error_log.blame_author_name %> (<%= @error_log.blame_author_email %>)</dd>
+
+          <dt>Commit Date</dt>
+          <dd><%= @error_log.blame_commit_date&.strftime("%Y-%m-%d %H:%M:%S %Z") || "N/A" %></dd>
+        </dl>
+        <div class="mbn-actions">
+          <%= button_to "Refresh Blame Info", fetch_blame_dashboard_path(@error_log, force: true), method: :post, class: "mbn-btn mbn-btn-secondary" %>
+        </div>
+      <% else %>
+        <p class="mbn-empty">No git blame information available.</p>
+        <div class="mbn-actions">
+          <%= button_to "Fetch Git Blame", fetch_blame_dashboard_path(@error_log), method: :post, class: "mbn-btn mbn-btn-primary" %>
+        </div>
+      <% end %>
+    </section>
+
+    <section class="mbn-section">
+      <h2>GitHub Issue</h2>
+      <% if @error_log.has_github_issue? %>
+        <dl class="mbn-definition-list">
+          <dt>Issue Number</dt>
+          <dd>#<%= @error_log.github_issue_number %></dd>
+
+          <dt>Issue URL</dt>
+          <dd><%= link_to @error_log.github_issue_url, @error_log.github_issue_url, target: "_blank", rel: "noopener noreferrer" %></dd>
+        </dl>
+      <% else %>
+        <% if @github_configured %>
+          <p class="mbn-empty">No GitHub issue has been created for this error.</p>
+          <div class="mbn-actions">
+            <%= button_to "Create GitHub Issue", create_issue_dashboard_path(@error_log), method: :post, class: "mbn-btn mbn-btn-primary" %>
+          </div>
+        <% else %>
+          <p class="mbn-empty">GitHub integration is not configured. Configure <code>github_access_token</code>, <code>github_repo_owner</code>, and <code>github_repo_name</code> in your initializer.</p>
+        <% end %>
+      <% end %>
     </section>
 
     <section class="mbn-section">
