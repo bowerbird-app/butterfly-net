@@ -1,6 +1,9 @@
 Rails.application.routes.draw do
   mount MarcoButterflyNet::Engine => "/marco_butterfly_net"
 
+  # Redirect root to the error dashboard
+  root to: redirect("/marco_butterfly_net")
+
   # Test routes for integration testing (only in test environment)
   if Rails.env.test?
     get "/test/name_error" => "test_errors#name_error"

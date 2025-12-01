@@ -11,7 +11,8 @@ bundle install
 # Set up the test dummy app database
 echo "🗄️  Setting up test database..."
 cd test/dummy
-bin/rails db:prepare
+bin/rails marco_butterfly_net:install:migrations
+bin/rails db:create db:migrate
 cd ../..
 
 # Run tests to verify setup
