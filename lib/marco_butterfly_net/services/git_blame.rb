@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "shellwords"
+
 module MarcoButterflyNet
   module Services
     # Service to extract git blame information from backtrace lines.
