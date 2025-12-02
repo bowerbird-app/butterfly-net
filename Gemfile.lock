@@ -4,6 +4,7 @@ PATH
     marco_butterfly_net (0.3.0)
       octokit (~> 10.0)
       rails (>= 8.1.1)
+      tailwindcss-ruby (~> 4.0)
 
 GEM
   remote: https://rubygems.org/
@@ -272,6 +273,13 @@ GEM
     sqlite3 (2.8.0-x86_64-linux-gnu)
     sqlite3 (2.8.0-x86_64-linux-musl)
     stringio (3.1.8)
+    tailwindcss-ruby (4.1.16)
+    tailwindcss-ruby (4.1.16-aarch64-linux-gnu)
+    tailwindcss-ruby (4.1.16-aarch64-linux-musl)
+    tailwindcss-ruby (4.1.16-arm64-darwin)
+    tailwindcss-ruby (4.1.16-x86_64-darwin)
+    tailwindcss-ruby (4.1.16-x86_64-linux-gnu)
+    tailwindcss-ruby (4.1.16-x86_64-linux-musl)
     thor (1.4.0)
     timeout (0.4.4)
     tsort (0.2.0)

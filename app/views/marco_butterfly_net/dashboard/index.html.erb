@@ -1,46 +1,46 @@
-<div class="mbn-dashboard">
-  <header class="mbn-header">
-    <h1>Error Tracking Dashboard</h1>
-    <p class="mbn-subtitle">Total errors: <%= @total_count %></p>
+<div class="bg-white rounded-lg shadow-md p-6">
+  <header class="border-b-2 border-gray-200 pb-4 mb-6">
+    <h1 class="m-0 mb-2 text-2xl font-semibold text-gray-900">Error Tracking Dashboard</h1>
+    <p class="m-0 text-gray-600 text-sm">Total errors: <%= @total_count %></p>
   </header>
 
   <% if @error_logs.empty? %>
-    <div class="mbn-empty-state">
-      <p>No errors recorded yet.</p>
+    <div class="text-center py-16 px-5 text-gray-600">
+      <p class="m-0 text-base">No errors recorded yet.</p>
     </div>
   <% else %>
-    <table class="mbn-table">
+    <table class="w-full border-collapse mb-5">
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Exception</th>
-          <th>Message</th>
-          <th>Time</th>
-          <th>Actions</th>
+          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">ID</th>
+          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">Exception</th>
+          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">Message</th>
+          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">Time</th>
+          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">Actions</th>
         </tr>
       </thead>
       <tbody>
         <% @error_logs.each do |error_log| %>
-          <tr>
-            <td><%= error_log.id %></td>
-            <td class="mbn-exception-class"><%= error_log.exception_class %></td>
-            <td class="mbn-message"><%= truncate(error_log.message, length: 80) %></td>
-            <td class="mbn-timestamp"><%= error_log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
-            <td>
-              <%= link_to "View Details", dashboard_path(error_log), class: "mbn-btn mbn-btn-primary" %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 border-b border-gray-200"><%= error_log.id %></td>
+            <td class="px-4 py-3 border-b border-gray-200 font-mono text-red-600 font-medium"><%= error_log.exception_class %></td>
+            <td class="px-4 py-3 border-b border-gray-200 text-gray-600 max-w-xs overflow-hidden text-ellipsis whitespace-nowrap"><%= truncate(error_log.message, length: 80) %></td>
+            <td class="px-4 py-3 border-b border-gray-200 text-gray-500 text-sm whitespace-nowrap"><%= error_log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+            <td class="px-4 py-3 border-b border-gray-200">
+              <%= link_to "View Details", dashboard_path(error_log), class: "inline-block px-4 py-2 text-sm font-medium no-underline rounded border border-blue-600 bg-blue-600 text-white cursor-pointer transition-all duration-200 hover:bg-blue-700 hover:border-blue-700" %>
             </td>
           </tr>
         <% end %>
       </tbody>
     </table>
 
-    <nav class="mbn-pagination">
+    <nav class="flex items-center justify-center gap-4 pt-5 border-t border-gray-200">
       <% if @page > 1 %>
-        <%= link_to "← Previous", dashboard_index_path(page: @page - 1), class: "mbn-btn" %>
+        <%= link_to "← Previous", dashboard_index_path(page: @page - 1), class: "inline-block px-4 py-2 text-sm font-medium no-underline rounded border border-gray-300 bg-white text-gray-800 cursor-pointer transition-all duration-200 hover:bg-gray-100 hover:border-gray-400" %>
       <% end %>
-      <span class="mbn-page-info">Page <%= @page %> of <%= @total_pages %></span>
+      <span class="text-gray-600 text-sm">Page <%= @page %> of <%= @total_pages %></span>
       <% if @page < @total_pages %>
-        <%= link_to "Next →", dashboard_index_path(page: @page + 1), class: "mbn-btn" %>
+        <%= link_to "Next →", dashboard_index_path(page: @page + 1), class: "inline-block px-4 py-2 text-sm font-medium no-underline rounded border border-gray-300 bg-white text-gray-800 cursor-pointer transition-all duration-200 hover:bg-gray-100 hover:border-gray-400" %>
       <% end %>
     </nav>
   <% end %>
