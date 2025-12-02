@@ -10,6 +10,10 @@ MarcoButterflyNet is a self-hosted error tracking dashboard for Rails applicatio
 - **Persistent Storage**: Stores errors in a database table (namespaced to avoid conflicts)
 - **Dashboard UI**: Clean, paginated interface to browse and inspect errors
 - **Scoped Styling**: CSS is namespaced to avoid conflicts with host application styles
+- **User Tracking**: Track which users are affected by each error with separate occurrence records
+- **Error Status Management**: Track bug resolution status (open, in_progress, resolved, dismissed)
+- **Git Blame Integration**: Identify who introduced the code that caused an error
+- **GitHub Issue Integration**: Create GitHub issues directly from the error dashboard
 
 ## Installation
 
@@ -31,6 +35,70 @@ Run the migration to create the error logs table:
 bin/rails marco_butterfly_net:install:migrations
 bin/rails db:migrate
 ```
+
+## Upgrading from v0.3.0
+
+If you're upgrading from v0.3.0 to a newer version with user tracking features, follow these steps:
+
+### 1. Run the New Migration (Required)
+
+```bash
+bin/rails marco_butterfly_net:install:migrations
+bin/rails db:migrate
+```
+
+This migration will:
+- Add a `status` column to existing error logs (defaults to "open")
+- Create the new `error_occurrences` table to track individual error instances
+- Add indexes for efficient querying by user, status, and timestamp
+
+**Important**: Existing error logs will remain intact but won't have occurrence records. Only new errors after the migration will properly track occurrences.
+
+### 2. Add User Tracking (Optional but Recommended)
+
+To track which users are affected by errors, add this to your `ApplicationController` or a concern:
+
+```ruby
+around_action :set_error_tracking_context
+
+private
+
+def set_error_tracking_context
+  # Store user info in request.env for error tracking
+  request.env["error_tracking.user_id"] = current_user&.id
+  request.env["error_tracking.user_email"] = current_user&.email
+  yield
+end
+```
+
+**Without this setup**: The gem will continue to work normally, but won't capture user information for errors.
+
+**With this setup**: You'll be able to:
+- See which users are affected by each error
+- Filter errors by user ID or email
+- Track the number of unique users impacted
+- View the complete timeline of error occurrences
+
+### 3. No Breaking Changes
+
+The upgrade is backward compatible - no code changes are required for existing functionality to continue working.
+
+### Testing with Sample Data
+
+To quickly test the dashboard with sample error data, you can use the seed file from the dummy app:
+
+```bash
+# Copy the seed file to your app
+cp $(bundle show marco_butterfly_net)/test/dummy/db/seeds.rb db/marco_butterfly_net_seeds.rb
+
+# Run it
+bin/rails runner db/marco_butterfly_net_seeds.rb
+```
+
+This will create:
+- 5 different error types with various statuses (open, in_progress, resolved, dismissed)
+- 26 error occurrences across different users
+- Sample data showing git blame and GitHub issue integration
 
 ## Usage
 
@@ -110,16 +178,48 @@ end
 
 ## Data Model
 
-The engine creates a `marco_butterfly_net_error_logs` table with the following fields:
+The engine creates two main tables to track errors and their occurrences:
+
+### Error Logs Table (`marco_butterfly_net_error_logs`)
+
+Stores unique error types with their metadata:
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `exception_class` | string | The class name of the exception (e.g., `NoMethodError`) |
 | `message` | text | The exception message |
 | `backtrace` | text | The full stack trace |
+| `status` | string | Error status: `open`, `in_progress`, `resolved`, or `dismissed` (default: `open`) |
+| `blame_file` | string | File path from git blame analysis |
+| `blame_line_number` | integer | Line number from git blame |
+| `blame_commit_sha` | string | Git commit SHA that introduced the code |
+| `blame_author_name` | string | Author name from git blame |
+| `blame_author_email` | string | Author email from git blame |
+| `blame_commit_date` | datetime | Commit date from git blame |
+| `github_issue_number` | integer | Associated GitHub issue number |
+| `github_issue_url` | string | Associated GitHub issue URL |
+| `created_at` | datetime | When the error type was first seen |
+| `updated_at` | datetime | When the error was last updated |
+
+### Error Occurrences Table (`marco_butterfly_net_error_occurrences`)
+
+Tracks individual instances of each error type with user context:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `error_log_id` | bigint | Foreign key to `marco_butterfly_net_error_logs` |
+| `user_id` | string | The ID of the user who encountered the error (if available) |
+| `user_email` | string | The email of the user who encountered the error (if available) |
 | `request_params` | json | Request details (path, method, query string, params) |
 | `user_agent` | string | The client's User-Agent header |
-| `created_at` | datetime | When the error occurred |
+| `created_at` | datetime | When this specific occurrence happened |
+| `updated_at` | datetime | When this occurrence was last updated |
+
+This separation allows you to:
+- Group identical errors together while tracking each occurrence separately
+- See how many times an error occurred and when
+- Identify which users are affected by specific errors
+- Track error resolution status independently from occurrences
 
 ## Architecture
 
@@ -173,6 +273,98 @@ MarcoButterflyNet can identify who introduced the code that caused an error by u
 - The commit SHA that introduced the code
 - The author's name and email
 - The date of the commit
+
+### Configuration
+
+To enable git blame functionality, ensure your application has access to the git repository. By default, the engine uses `Rails.root` as the repository path. You can customize this in your initializer:
+
+```ruby
+MarcoButterflyNet.configure do |config|
+  # Optional: Path to the git repository (defaults to Rails.root)
+  config.repo_path = Rails.root.to_s
+end
+```
+
+## User Tracking and Error Occurrences
+
+MarcoButterflyNet tracks each occurrence of an error separately, allowing you to:
+
+- See how many times an error has occurred
+- Track which users are affected by each error
+- View the timeline of error occurrences
+- Filter errors by user impact
+
+### How User Information is Captured
+
+The middleware automatically captures user information **if you provide it** through the Rack environment. Without this setup, errors are still tracked but without user context.
+
+### Setting Up User Tracking
+
+Add this code to your `ApplicationController` or a concern to enable user tracking:
+
+```ruby
+# In your ApplicationController or a concern
+around_action :set_error_tracking_context
+
+private
+
+def set_error_tracking_context
+  # Store user info in request.env for error tracking
+  # The middleware will read these values when an error occurs
+  request.env["error_tracking.user_id"] = current_user&.id
+  request.env["error_tracking.user_email"] = current_user&.email
+  yield
+end
+```
+
+**How it works:**
+1. Your controller sets `request.env["error_tracking.user_id"]` and `request.env["error_tracking.user_email"]`
+2. When an exception occurs, the `ExceptionCatcher` middleware extracts these values
+3. The information is stored in the `error_occurrences` table, linked to the error log
+
+**Note:** If you don't set these values, the gem still works normally - it just won't know which user encountered the error.
+
+### Querying Errors by User Impact
+
+The `ErrorLog` model provides scopes for filtering by user:
+
+```ruby
+# Find all errors affecting a specific user
+MarcoButterflyNet::ErrorLog.affecting_user(user_id)
+
+# Find all errors affecting a specific email
+MarcoButterflyNet::ErrorLog.affecting_user_email("user@example.com")
+
+# Find repeated errors (more than one occurrence)
+MarcoButterflyNet::ErrorLog.repeated
+
+# Get occurrence count and affected users for an error
+error_log = MarcoButterflyNet::ErrorLog.find(123)
+error_log.occurrence_count       # => 42
+error_log.affected_users_count   # => 15
+```
+
+## Error Status Management
+
+Each error can be tracked through its lifecycle with status values:
+
+- **open** (default): Error is newly discovered and needs attention
+- **in_progress**: Someone is actively working on fixing the error
+- **resolved**: Error has been fixed
+- **dismissed**: Error is intentionally being ignored
+
+### Using Status Scopes
+
+```ruby
+# Filter errors by status
+MarcoButterflyNet::ErrorLog.open
+MarcoButterflyNet::ErrorLog.resolved
+MarcoButterflyNet::ErrorLog.with_status("in_progress")
+
+# Update error status
+error_log = MarcoButterflyNet::ErrorLog.find(123)
+error_log.update(status: "resolved")
+```
 
 ## GitHub Issue Integration
 

@@ -4,6 +4,7 @@ require "test_helper"
 
 class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   setup do
+    MarcoButterflyNet::ErrorOccurrence.delete_all
     MarcoButterflyNet::ErrorLog.delete_all
   end
 
@@ -90,5 +91,210 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
     assert_equal 2, runtime_errors.count
     assert runtime_errors.all? { |e| e.exception_class == "RuntimeError" }
+  end
+
+  # Tests for occurrence tracking
+  test "new error log has occurrence_count of 0" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+
+    assert_equal 0, error_log.occurrence_count
+  end
+
+  test "record_occurrence creates an occurrence" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    user_id = SecureRandom.uuid
+
+    occurrence = error_log.record_occurrence(user_id: user_id, user_email: "test@example.com")
+
+    assert occurrence.persisted?
+    assert_equal user_id, occurrence.user_id
+    assert_equal "test@example.com", occurrence.user_email
+    assert_equal 1, error_log.occurrence_count
+  end
+
+  test "repeated? returns false for no occurrences" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+
+    assert_not error_log.repeated?
+  end
+
+  test "repeated? returns false for single occurrence" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence
+
+    assert_not error_log.repeated?
+  end
+
+  test "repeated? returns true for multiple occurrences" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence
+    error_log.record_occurrence
+
+    assert error_log.repeated?
+  end
+
+  test "repeated scope filters errors with more than one occurrence" do
+    single = MarcoButterflyNet::ErrorLog.create!(exception_class: "SingleError")
+    single.record_occurrence
+
+    repeated = MarcoButterflyNet::ErrorLog.create!(exception_class: "RepeatedError")
+    repeated.record_occurrence
+    repeated.record_occurrence
+
+    repeated_errors = MarcoButterflyNet::ErrorLog.repeated
+
+    assert_equal 1, repeated_errors.count
+    assert_equal "RepeatedError", repeated_errors.first.exception_class
+  end
+
+  test "find_or_create_with_occurrence groups same errors together" do
+    user1_id = SecureRandom.uuid
+    user2_id = SecureRandom.uuid
+
+    error1 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "SameError",
+      message: "Same message",
+      user_id: user1_id,
+      user_email: "user1@example.com"
+    )
+
+    error2 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "SameError",
+      message: "Same message",
+      user_id: user2_id,
+      user_email: "user2@example.com"
+    )
+
+    # Same error log for both users
+    assert_equal error1.id, error2.id
+    assert_equal 1, MarcoButterflyNet::ErrorLog.count
+    assert_equal 2, error1.occurrence_count
+    assert_equal 2, error1.occurrences.count
+
+    # But occurrences are separate
+    assert_equal 2, MarcoButterflyNet::ErrorOccurrence.count
+    assert error1.occurrences.exists?(user_id: user1_id)
+    assert error1.occurrences.exists?(user_id: user2_id)
+  end
+
+  test "find_or_create_with_occurrence creates new error for different exception" do
+    error1 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "Error1",
+      message: "Message 1"
+    )
+
+    error2 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "Error2",
+      message: "Message 2"
+    )
+
+    assert_not_equal error1.id, error2.id
+    assert_equal 2, MarcoButterflyNet::ErrorLog.count
+  end
+
+  test "occurrences_for_user returns only that users occurrences" do
+    user1_id = SecureRandom.uuid
+    user2_id = SecureRandom.uuid
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence(user_id: user1_id)
+    error_log.record_occurrence(user_id: user1_id)
+    error_log.record_occurrence(user_id: user2_id)
+
+    user1_occurrences = error_log.occurrences_for_user(user1_id)
+
+    assert_equal 2, user1_occurrences.count
+    assert user1_occurrences.all? { |o| o.user_id == user1_id }
+  end
+
+  test "affected_users_count returns unique user count" do
+    user1_id = SecureRandom.uuid
+    user2_id = SecureRandom.uuid
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence(user_id: user1_id)
+    error_log.record_occurrence(user_id: user1_id)
+    error_log.record_occurrence(user_id: user2_id)
+    error_log.record_occurrence  # No user
+
+    assert_equal 2, error_log.affected_users_count
+  end
+
+  test "affecting_user scope filters errors that affected a user" do
+    user_id = SecureRandom.uuid
+    other_user_id = SecureRandom.uuid
+
+    error1 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1")
+    error1.record_occurrence(user_id: user_id)
+
+    error2 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+    error2.record_occurrence(user_id: other_user_id)
+
+    user_errors = MarcoButterflyNet::ErrorLog.affecting_user(user_id)
+
+    assert_equal 1, user_errors.count
+    assert_equal "Error1", user_errors.first.exception_class
+  end
+
+  # Tests for status tracking
+  test "new error log has status of 'open' by default" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+
+    assert_equal "open", error_log.status
+  end
+
+  test "with_status scope filters by status" do
+    MarcoButterflyNet::ErrorLog.create!(exception_class: "OpenError", status: "open")
+    MarcoButterflyNet::ErrorLog.create!(exception_class: "ResolvedError", status: "resolved")
+    MarcoButterflyNet::ErrorLog.create!(exception_class: "InProgressError", status: "in_progress")
+
+    open_errors = MarcoButterflyNet::ErrorLog.with_status("open")
+    resolved_errors = MarcoButterflyNet::ErrorLog.with_status("resolved")
+
+    assert_equal 1, open_errors.count
+    assert_equal "OpenError", open_errors.first.exception_class
+    assert_equal 1, resolved_errors.count
+    assert_equal "ResolvedError", resolved_errors.first.exception_class
+  end
+
+  test "open scope filters open errors" do
+    MarcoButterflyNet::ErrorLog.create!(exception_class: "OpenError", status: "open")
+    MarcoButterflyNet::ErrorLog.create!(exception_class: "ResolvedError", status: "resolved")
+
+    open_errors = MarcoButterflyNet::ErrorLog.open
+
+    assert_equal 1, open_errors.count
+    assert_equal "OpenError", open_errors.first.exception_class
+  end
+
+  test "resolved scope filters resolved errors" do
+    MarcoButterflyNet::ErrorLog.create!(exception_class: "OpenError", status: "open")
+    MarcoButterflyNet::ErrorLog.create!(exception_class: "ResolvedError", status: "resolved")
+
+    resolved_errors = MarcoButterflyNet::ErrorLog.resolved
+
+    assert_equal 1, resolved_errors.count
+    assert_equal "ResolvedError", resolved_errors.first.exception_class
+  end
+
+  test "validates status is in STATUSES" do
+    error_log = MarcoButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      status: "invalid_status"
+    )
+
+    assert_not error_log.valid?
+    assert_includes error_log.errors[:status], "is not included in the list"
+  end
+
+  test "allows valid statuses" do
+    MarcoButterflyNet::ErrorLog::STATUSES.each do |status|
+      error_log = MarcoButterflyNet::ErrorLog.new(
+        exception_class: "RuntimeError",
+        status: status
+      )
+
+      assert error_log.valid?, "Expected status '#{status}' to be valid"
+    end
   end
 end

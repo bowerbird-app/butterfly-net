@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.email       = [ "marco@butterfly.net" ]
   spec.homepage    = "https://github.com/bowerbird-app/marco-butterfly-net"
   spec.summary     = "Self-hosted error tracking dashboard for Rails applications."
-  spec.description = "MarcoButterflyNet is a mountable Rails engine that provides a self-hosted error tracking dashboard with Rack middleware for exception interception."
+  spec.description = "MarcoButterflyNet is a mountable Rails engine that provides a self-hosted error tracking dashboard with Rack middleware for exception interception, user tracking, git blame integration, and GitHub issue creation."
   spec.license     = "MIT"
 
   spec.metadata["homepage_uri"] = spec.homepage
@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"] = "https://github.com/bowerbird-app/marco-butterfly-net/blob/main/CHANGELOG.md"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md"]
+    Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md", "CHANGELOG.md"]
   end
 
   spec.add_dependency "rails", ">= 8.1.1"
