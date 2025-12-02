@@ -9,7 +9,9 @@
 
   <%= yield :head %>
 
-  <script src="https://cdn.tailwindcss.com"></script>
+  <%# Tailwind Play CDN - for development/internal dashboards. For production deployments
+      requiring SRI, consider bundling Tailwind CSS with your host application instead. %>
+  <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
 </head>
 <body class="bg-gray-100 text-gray-900 font-sans text-sm leading-relaxed">
   <div class="max-w-7xl mx-auto p-5">
