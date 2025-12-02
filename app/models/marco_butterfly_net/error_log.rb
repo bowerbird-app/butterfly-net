@@ -30,6 +30,29 @@ module MarcoButterflyNet
     # Scope for errors without GitHub issues
     scope :without_github_issue, -> { where(github_issue_number: nil) }
 
+    # Scope for filtering by user_id
+    scope :for_user, ->(user_id) { where(user_id: user_id) }
+
+    # Scope for filtering by user_email
+    scope :for_user_email, ->(email) { where(user_email: email) }
+
+    # Scope for filtering by status
+    scope :with_status, ->(status) { where(status: status) }
+
+    # Scope for open errors
+    scope :open, -> { where(status: "open") }
+
+    # Scope for resolved errors
+    scope :resolved, -> { where(status: "resolved") }
+
+    # Scope for repeated errors (occurrence_count > 1)
+    scope :repeated, -> { where("occurrence_count > 1") }
+
+    # Status constants
+    STATUSES = %w[open in_progress resolved dismissed].freeze
+
+    validates :status, inclusion: { in: STATUSES }, allow_nil: true
+
     # Checks if this error has an associated GitHub issue
     def has_github_issue?
       github_issue_number.present?
@@ -38,6 +61,42 @@ module MarcoButterflyNet
     # Checks if this error has blame information
     def has_blame_info?
       blame_file.present? && blame_commit_sha.present?
+    end
+
+    # Checks if this is a repeated error
+    def repeated?
+      occurrence_count > 1
+    end
+
+    # Increments the occurrence count for this error
+    def increment_occurrence!
+      increment!(:occurrence_count)
+    end
+
+    # Finds or creates an error log for the same error and user
+    # @param exception_class [String] the exception class name
+    # @param message [String] the error message
+    # @param user_id [String] optional user id
+    # @param user_email [String] optional user email
+    # @return [MarcoButterflyNet::ErrorLog] the found or created error log
+    def self.find_or_create_for_user(exception_class:, message:, user_id: nil, user_email: nil, **attributes)
+      existing = where(exception_class: exception_class, message: message)
+      existing = existing.where(user_id: user_id) if user_id
+      existing = existing.where(user_email: user_email) if user_email
+      existing = existing.first
+
+      if existing
+        existing.increment_occurrence!
+        existing
+      else
+        create!(
+          exception_class: exception_class,
+          message: message,
+          user_id: user_id,
+          user_email: user_email,
+          **attributes
+        )
+      end
     end
 
     # Retrieves git blame information for this error
