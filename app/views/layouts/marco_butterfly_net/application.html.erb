@@ -9,10 +9,10 @@
 
   <%= yield :head %>
 
-  <%= stylesheet_link_tag "marco_butterfly_net/application", media: "all" %>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="mbn-body">
-  <div class="mbn-container">
+<body class="bg-gray-100 text-gray-900 font-sans text-sm leading-relaxed">
+  <div class="max-w-7xl mx-auto p-5">
     <%= yield %>
   </div>
 </body>
