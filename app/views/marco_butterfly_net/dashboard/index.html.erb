@@ -1,47 +1,106 @@
-<div class="bg-white rounded-lg shadow-md p-6">
-  <header class="border-b-2 border-gray-200 pb-4 mb-6">
-    <h1 class="m-0 mb-2 text-2xl font-semibold text-gray-900">Error Tracking Dashboard</h1>
-    <p class="m-0 text-gray-600 text-sm">Total errors: <%= @total_count %></p>
-  </header>
+<div class="bg-white px-4 py-10 sm:px-6 lg:px-8">
+  <div class="mx-auto max-w-7xl">
+    <div class="px-4 sm:px-6 lg:px-8">
+      <div class="sm:flex sm:items-center">
+        <div class="sm:flex-auto">
+          <h1 class="text-base font-semibold text-gray-900">Error Tracking Dashboard</h1>
+          <p class="mt-2 text-sm text-gray-700">Total errors: <%= @total_count %></p>
+        </div>
+      </div>
+      <div class="mt-8 flow-root">
+        <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+            <% if @error_logs.empty? %>
+              <div class="text-center py-16 px-5 text-gray-600">
+                <p class="text-base">No errors recorded yet.</p>
+              </div>
+            <% else %>
+              <div class="overflow-hidden shadow ring-1 ring-gray-200 ring-opacity-5 sm:rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Status</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Exception</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Message</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Occurrences</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Users Affected</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Last Seen</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">GitHub Issue</th>
+                      <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                        <span class="sr-only">View</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 bg-white">
+                    <% @error_logs.each do |error_log| %>
+                      <tr>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                          <% case error_log.status %>
+                          <% when 'open' %>
+                            <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">Open</span>
+                          <% when 'in_progress' %>
+                            <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">In Progress</span>
+                          <% when 'resolved' %>
+                            <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Resolved</span>
+                          <% when 'dismissed' %>
+                            <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">Dismissed</span>
+                          <% end %>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900"><%= error_log.exception_class %></td>
+                        <td class="px-3 py-4 text-sm text-gray-500"><%= truncate(error_log.message, length: 60) %></td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                          <span class="font-medium"><%= error_log.occurrence_count %></span>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                          <% 
+                            unique_users = error_log.occurrences.where.not(user_id: nil).distinct.count(:user_id)
+                            unique_emails = error_log.occurrences.where.not(user_email: nil).distinct.count(:user_email)
+                            affected_count = [unique_users, unique_emails].max
+                          %>
+                          <% if affected_count > 0 %>
+                            <span class="font-medium"><%= affected_count %></span>
+                          <% else %>
+                            <span class="text-gray-400">—</span>
+                          <% end %>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <% last_occurrence = error_log.occurrences.order(created_at: :desc).first %>
+                          <%= last_occurrence ? time_ago_in_words(last_occurrence.created_at) + " ago" : time_ago_in_words(error_log.created_at) + " ago" %>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                          <% if error_log.has_github_issue? %>
+                            <%= link_to error_log.github_issue_url, target: "_blank", rel: "noopener noreferrer", class: "inline-flex items-center gap-1 text-gray-900 hover:text-gray-700" do %>
+                              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                              </svg>
+                              <span class="font-medium">#<%= error_log.github_issue_number %></span>
+                            <% end %>
+                          <% else %>
+                            <span class="text-gray-400">—</span>
+                          <% end %>
+                        </td>
+                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <%= link_to "View", dashboard_path(error_log), class: "text-blue-600 hover:text-blue-900" %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
 
-  <% if @error_logs.empty? %>
-    <div class="text-center py-16 px-5 text-gray-600">
-      <p class="m-0 text-base">No errors recorded yet.</p>
+              <nav class="flex items-center justify-center gap-4 pt-6">
+                <% if @page > 1 %>
+                  <%= link_to "← Previous", dashboard_index_path(page: @page - 1), class: "inline-block rounded bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" %>
+                <% end %>
+                <span class="text-gray-700 text-sm">Page <%= @page %> of <%= @total_pages %></span>
+                <% if @page < @total_pages %>
+                  <%= link_to "Next →", dashboard_index_path(page: @page + 1), class: "inline-block rounded bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" %>
+                <% end %>
+              </nav>
+            <% end %>
+          </div>
+        </div>
+      </div>
     </div>
-  <% else %>
-    <table class="w-full border-collapse mb-5">
-      <thead>
-        <tr>
-          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">ID</th>
-          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">Exception</th>
-          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">Message</th>
-          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">Time</th>
-          <th class="px-4 py-3 text-left border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 text-xs uppercase tracking-wider">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @error_logs.each do |error_log| %>
-          <tr class="hover:bg-gray-50">
-            <td class="px-4 py-3 border-b border-gray-200"><%= error_log.id %></td>
-            <td class="px-4 py-3 border-b border-gray-200 font-mono text-red-600 font-medium"><%= error_log.exception_class %></td>
-            <td class="px-4 py-3 border-b border-gray-200 text-gray-600 max-w-xs overflow-hidden text-ellipsis whitespace-nowrap"><%= truncate(error_log.message, length: 80) %></td>
-            <td class="px-4 py-3 border-b border-gray-200 text-gray-500 text-sm whitespace-nowrap"><%= error_log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
-            <td class="px-4 py-3 border-b border-gray-200">
-              <%= link_to "View Details", dashboard_path(error_log), class: "inline-block px-4 py-2 text-sm font-medium no-underline rounded border border-blue-600 bg-blue-600 text-white cursor-pointer transition-all duration-200 hover:bg-blue-700 hover:border-blue-700" %>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-
-    <nav class="flex items-center justify-center gap-4 pt-5 border-t border-gray-200">
-      <% if @page > 1 %>
-        <%= link_to "← Previous", dashboard_index_path(page: @page - 1), class: "inline-block px-4 py-2 text-sm font-medium no-underline rounded border border-gray-300 bg-white text-gray-800 cursor-pointer transition-all duration-200 hover:bg-gray-100 hover:border-gray-400" %>
-      <% end %>
-      <span class="text-gray-600 text-sm">Page <%= @page %> of <%= @total_pages %></span>
-      <% if @page < @total_pages %>
-        <%= link_to "Next →", dashboard_index_path(page: @page + 1), class: "inline-block px-4 py-2 text-sm font-medium no-underline rounded border border-gray-300 bg-white text-gray-800 cursor-pointer transition-all duration-200 hover:bg-gray-100 hover:border-gray-400" %>
-      <% end %>
-    </nav>
-  <% end %>
+  </div>
 </div>
