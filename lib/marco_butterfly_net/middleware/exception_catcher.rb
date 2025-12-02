@@ -63,10 +63,12 @@ module MarcoButterflyNet
       private
 
       def persist_exception(exception, env)
-        MarcoButterflyNet::ErrorLog.create!(
+        MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
           exception_class: exception.class.name,
           message: exception.message,
           backtrace: exception.backtrace&.join("\n"),
+          user_id: env["error_tracking.user_id"],
+          user_email: env["error_tracking.user_email"],
           request_params: extract_request_params(env),
           user_agent: env["HTTP_USER_AGENT"]
         )
