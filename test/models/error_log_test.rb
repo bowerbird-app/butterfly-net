@@ -173,25 +173,48 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     assert_equal "RepeatedError", repeated_errors.first.exception_class
   end
 
-  test "find_or_create_for_user creates new error for new exception" do
+  test "find_or_create_for_user creates new error for new exception with user" do
+    user_id = SecureRandom.uuid
     error = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
       exception_class: "NewError",
-      message: "This is new"
+      message: "This is new",
+      user_id: user_id
     )
 
     assert error.persisted?
     assert_equal 1, error.occurrence_count
+    assert_equal user_id, error.user_id
   end
 
-  test "find_or_create_for_user increments occurrence for existing error" do
+  test "find_or_create_for_user always creates new error when no user identifiers provided" do
+    error1 = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
+      exception_class: "NoUserError",
+      message: "No user"
+    )
+
+    error2 = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
+      exception_class: "NoUserError",
+      message: "No user"
+    )
+
+    assert_not_equal error1.id, error2.id
+    assert_equal 1, error1.occurrence_count
+    assert_equal 1, error2.occurrence_count
+    assert_equal 2, MarcoButterflyNet::ErrorLog.count
+  end
+
+  test "find_or_create_for_user increments occurrence for existing error with same user" do
+    user_id = SecureRandom.uuid
     MarcoButterflyNet::ErrorLog.create!(
       exception_class: "ExistingError",
-      message: "Already exists"
+      message: "Already exists",
+      user_id: user_id
     )
 
     error = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
       exception_class: "ExistingError",
-      message: "Already exists"
+      message: "Already exists",
+      user_id: user_id
     )
 
     assert_equal 2, error.occurrence_count

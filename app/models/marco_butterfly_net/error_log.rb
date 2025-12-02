@@ -51,7 +51,7 @@ module MarcoButterflyNet
     # Status constants
     STATUSES = %w[open in_progress resolved dismissed].freeze
 
-    validates :status, inclusion: { in: STATUSES }, allow_nil: true
+    validates :status, inclusion: { in: STATUSES }
 
     # Checks if this error has an associated GitHub issue
     def has_github_issue?
@@ -80,6 +80,16 @@ module MarcoButterflyNet
     # @param user_email [String] optional user email
     # @return [MarcoButterflyNet::ErrorLog] the found or created error log
     def self.find_or_create_for_user(exception_class:, message:, user_id: nil, user_email: nil, **attributes)
+      # When no user identifiers provided, always create a new error
+      # to avoid incorrectly grouping errors from different users
+      if user_id.nil? && user_email.nil?
+        return create!(
+          exception_class: exception_class,
+          message: message,
+          **attributes
+        )
+      end
+
       existing = where(exception_class: exception_class, message: message)
       existing = existing.where(user_id: user_id) if user_id
       existing = existing.where(user_email: user_email) if user_email
