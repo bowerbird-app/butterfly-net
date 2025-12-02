@@ -4,6 +4,7 @@ require "test_helper"
 
 class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   setup do
+    MarcoButterflyNet::ErrorOccurrence.delete_all
     MarcoButterflyNet::ErrorLog.delete_all
   end
 
@@ -92,80 +93,53 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     assert runtime_errors.all? { |e| e.exception_class == "RuntimeError" }
   end
 
-  # Tests for user tracking functionality
-  test "creates error log with user_id and user_email" do
-    user_id = SecureRandom.uuid
-    error_log = MarcoButterflyNet::ErrorLog.create!(
-      exception_class: "RuntimeError",
-      message: "User error",
-      user_id: user_id,
-      user_email: "test@example.com"
-    )
-
-    assert error_log.persisted?
-    assert_equal user_id, error_log.user_id
-    assert_equal "test@example.com", error_log.user_email
-  end
-
-  test "for_user scope filters by user_id" do
-    user_id = SecureRandom.uuid
-    other_user_id = SecureRandom.uuid
-
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError", user_id: user_id)
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError", user_id: other_user_id)
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError", user_id: user_id)
-
-    user_errors = MarcoButterflyNet::ErrorLog.for_user(user_id)
-
-    assert_equal 2, user_errors.count
-    assert user_errors.all? { |e| e.user_id == user_id }
-  end
-
-  test "for_user_email scope filters by user_email" do
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError", user_email: "user1@example.com")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError", user_email: "user2@example.com")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError", user_email: "user1@example.com")
-
-    user_errors = MarcoButterflyNet::ErrorLog.for_user_email("user1@example.com")
-
-    assert_equal 2, user_errors.count
-    assert user_errors.all? { |e| e.user_email == "user1@example.com" }
-  end
-
   # Tests for occurrence tracking
-  test "new error log has occurrence_count of 1 by default" do
+  test "new error log has occurrence_count of 0" do
     error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
+    assert_equal 0, error_log.occurrence_count
+  end
+
+  test "record_occurrence creates an occurrence" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    user_id = SecureRandom.uuid
+
+    occurrence = error_log.record_occurrence(user_id: user_id, user_email: "test@example.com")
+
+    assert occurrence.persisted?
+    assert_equal user_id, occurrence.user_id
+    assert_equal "test@example.com", occurrence.user_email
     assert_equal 1, error_log.occurrence_count
   end
 
-  test "increment_occurrence! increments occurrence_count" do
+  test "repeated? returns false for no occurrences" do
     error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
-    assert_equal 1, error_log.occurrence_count
-
-    error_log.increment_occurrence!
-
-    assert_equal 2, error_log.occurrence_count
+    assert_not error_log.repeated?
   end
 
   test "repeated? returns false for single occurrence" do
     error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence
 
     assert_not error_log.repeated?
   end
 
   test "repeated? returns true for multiple occurrences" do
     error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    error_log.increment_occurrence!
+    error_log.record_occurrence
+    error_log.record_occurrence
 
     assert error_log.repeated?
   end
 
-  test "repeated scope filters errors with occurrence_count > 1" do
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "SingleError")
+  test "repeated scope filters errors with more than one occurrence" do
+    single = MarcoButterflyNet::ErrorLog.create!(exception_class: "SingleError")
+    single.record_occurrence
+
     repeated = MarcoButterflyNet::ErrorLog.create!(exception_class: "RepeatedError")
-    repeated.increment_occurrence!
+    repeated.record_occurrence
+    repeated.record_occurrence
 
     repeated_errors = MarcoButterflyNet::ErrorLog.repeated
 
@@ -173,72 +147,93 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     assert_equal "RepeatedError", repeated_errors.first.exception_class
   end
 
-  test "find_or_create_for_user creates new error for new exception with user" do
-    user_id = SecureRandom.uuid
-    error = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
-      exception_class: "NewError",
-      message: "This is new",
-      user_id: user_id
-    )
-
-    assert error.persisted?
-    assert_equal 1, error.occurrence_count
-    assert_equal user_id, error.user_id
-  end
-
-  test "find_or_create_for_user always creates new error when no user identifiers provided" do
-    error1 = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
-      exception_class: "NoUserError",
-      message: "No user"
-    )
-
-    error2 = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
-      exception_class: "NoUserError",
-      message: "No user"
-    )
-
-    assert_not_equal error1.id, error2.id
-    assert_equal 1, error1.occurrence_count
-    assert_equal 1, error2.occurrence_count
-    assert_equal 2, MarcoButterflyNet::ErrorLog.count
-  end
-
-  test "find_or_create_for_user increments occurrence for existing error with same user" do
-    user_id = SecureRandom.uuid
-    MarcoButterflyNet::ErrorLog.create!(
-      exception_class: "ExistingError",
-      message: "Already exists",
-      user_id: user_id
-    )
-
-    error = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
-      exception_class: "ExistingError",
-      message: "Already exists",
-      user_id: user_id
-    )
-
-    assert_equal 2, error.occurrence_count
-    assert_equal 1, MarcoButterflyNet::ErrorLog.count
-  end
-
-  test "find_or_create_for_user creates separate entries for different users" do
+  test "find_or_create_with_occurrence groups same errors together" do
     user1_id = SecureRandom.uuid
     user2_id = SecureRandom.uuid
 
-    error1 = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
+    error1 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "SameError",
       message: "Same message",
-      user_id: user1_id
+      user_id: user1_id,
+      user_email: "user1@example.com"
     )
 
-    error2 = MarcoButterflyNet::ErrorLog.find_or_create_for_user(
+    error2 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "SameError",
       message: "Same message",
-      user_id: user2_id
+      user_id: user2_id,
+      user_email: "user2@example.com"
+    )
+
+    # Same error log for both users
+    assert_equal error1.id, error2.id
+    assert_equal 1, MarcoButterflyNet::ErrorLog.count
+    assert_equal 2, error1.occurrence_count
+    assert_equal 2, error1.occurrences.count
+
+    # But occurrences are separate
+    assert_equal 2, MarcoButterflyNet::ErrorOccurrence.count
+    assert error1.occurrences.exists?(user_id: user1_id)
+    assert error1.occurrences.exists?(user_id: user2_id)
+  end
+
+  test "find_or_create_with_occurrence creates new error for different exception" do
+    error1 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "Error1",
+      message: "Message 1"
+    )
+
+    error2 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "Error2",
+      message: "Message 2"
     )
 
     assert_not_equal error1.id, error2.id
     assert_equal 2, MarcoButterflyNet::ErrorLog.count
+  end
+
+  test "occurrences_for_user returns only that users occurrences" do
+    user1_id = SecureRandom.uuid
+    user2_id = SecureRandom.uuid
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence(user_id: user1_id)
+    error_log.record_occurrence(user_id: user1_id)
+    error_log.record_occurrence(user_id: user2_id)
+
+    user1_occurrences = error_log.occurrences_for_user(user1_id)
+
+    assert_equal 2, user1_occurrences.count
+    assert user1_occurrences.all? { |o| o.user_id == user1_id }
+  end
+
+  test "affected_users_count returns unique user count" do
+    user1_id = SecureRandom.uuid
+    user2_id = SecureRandom.uuid
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence(user_id: user1_id)
+    error_log.record_occurrence(user_id: user1_id)
+    error_log.record_occurrence(user_id: user2_id)
+    error_log.record_occurrence  # No user
+
+    assert_equal 2, error_log.affected_users_count
+  end
+
+  test "affecting_user scope filters errors that affected a user" do
+    user_id = SecureRandom.uuid
+    other_user_id = SecureRandom.uuid
+
+    error1 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1")
+    error1.record_occurrence(user_id: user_id)
+
+    error2 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+    error2.record_occurrence(user_id: other_user_id)
+
+    user_errors = MarcoButterflyNet::ErrorLog.affecting_user(user_id)
+
+    assert_equal 1, user_errors.count
+    assert_equal "Error1", user_errors.first.exception_class
   end
 
   # Tests for status tracking

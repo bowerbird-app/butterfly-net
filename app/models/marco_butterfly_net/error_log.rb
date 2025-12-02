@@ -2,8 +2,11 @@
 
 module MarcoButterflyNet
   # Model for storing captured exception data from the error tracking middleware.
-  # Each record represents a single exception that was caught during a request.
+  # Each record represents a unique exception type that was caught during requests.
+  # Individual occurrences are tracked in ErrorOccurrence.
   class ErrorLog < ApplicationRecord
+    has_many :occurrences, class_name: "MarcoButterflyNet::ErrorOccurrence", dependent: :destroy
+
     validates :exception_class, presence: true
 
     # Returns backtrace as array (handles text storage)
@@ -30,12 +33,6 @@ module MarcoButterflyNet
     # Scope for errors without GitHub issues
     scope :without_github_issue, -> { where(github_issue_number: nil) }
 
-    # Scope for filtering by user_id
-    scope :for_user, ->(user_id) { where(user_id: user_id) }
-
-    # Scope for filtering by user_email
-    scope :for_user_email, ->(email) { where(user_email: email) }
-
     # Scope for filtering by status
     scope :with_status, ->(status) { where(status: status) }
 
@@ -45,8 +42,20 @@ module MarcoButterflyNet
     # Scope for resolved errors
     scope :resolved, -> { where(status: "resolved") }
 
-    # Scope for repeated errors (occurrence_count > 1)
-    scope :repeated, -> { where("occurrence_count > 1") }
+    # Scope for repeated errors (more than one occurrence)
+    scope :repeated, -> {
+      subquery = MarcoButterflyNet::ErrorOccurrence
+        .select(:error_log_id)
+        .group(:error_log_id)
+        .having("COUNT(*) > 1")
+      where(id: subquery)
+    }
+
+    # Scope for errors affecting a specific user
+    scope :affecting_user, ->(user_id) { joins(:occurrences).where(occurrences: { user_id: user_id }).distinct }
+
+    # Scope for errors affecting a specific user email
+    scope :affecting_user_email, ->(email) { joins(:occurrences).where(occurrences: { user_email: email }).distinct }
 
     # Status constants
     STATUSES = %w[open in_progress resolved dismissed].freeze
@@ -63,50 +72,68 @@ module MarcoButterflyNet
       blame_file.present? && blame_commit_sha.present?
     end
 
-    # Checks if this is a repeated error
+    # Returns the total occurrence count
+    def occurrence_count
+      occurrences.count
+    end
+
+    # Checks if this is a repeated error (more than one occurrence)
     def repeated?
       occurrence_count > 1
     end
 
-    # Increments the occurrence count for this error
-    def increment_occurrence!
-      increment!(:occurrence_count)
+    # Records an occurrence of this error for a user
+    # @param user_id [String] optional user id
+    # @param user_email [String] optional user email
+    # @param request_params [Hash] optional request parameters
+    # @param user_agent [String] optional user agent
+    # @return [MarcoButterflyNet::ErrorOccurrence] the created occurrence
+    def record_occurrence(user_id: nil, user_email: nil, request_params: nil, user_agent: nil)
+      occurrences.create!(
+        user_id: user_id,
+        user_email: user_email,
+        request_params: request_params,
+        user_agent: user_agent
+      )
     end
 
-    # Finds or creates an error log for the same error and user
+    # Finds or creates an error log for the same error type, and records an occurrence
     # @param exception_class [String] the exception class name
     # @param message [String] the error message
     # @param user_id [String] optional user id
     # @param user_email [String] optional user email
+    # @param request_params [Hash] optional request parameters
+    # @param user_agent [String] optional user agent
+    # @param backtrace [String] optional backtrace
     # @return [MarcoButterflyNet::ErrorLog] the found or created error log
-    def self.find_or_create_for_user(exception_class:, message:, user_id: nil, user_email: nil, **attributes)
-      # When no user identifiers provided, always create a new error
-      # to avoid incorrectly grouping errors from different users
-      if user_id.nil? && user_email.nil?
-        return create!(
-          exception_class: exception_class,
-          message: message,
-          **attributes
-        )
+    def self.find_or_create_with_occurrence(exception_class:, message:, user_id: nil, user_email: nil, request_params: nil, user_agent: nil, backtrace: nil)
+      error_log = find_or_create_by!(exception_class: exception_class, message: message) do |log|
+        log.backtrace = backtrace
       end
 
-      existing = where(exception_class: exception_class, message: message)
-      existing = existing.where(user_id: user_id) if user_id
-      existing = existing.where(user_email: user_email) if user_email
-      existing = existing.first
+      error_log.record_occurrence(
+        user_id: user_id,
+        user_email: user_email,
+        request_params: request_params,
+        user_agent: user_agent
+      )
 
-      if existing
-        existing.increment_occurrence!
-        existing
-      else
-        create!(
-          exception_class: exception_class,
-          message: message,
-          user_id: user_id,
-          user_email: user_email,
-          **attributes
-        )
-      end
+      error_log
+    end
+
+    # Returns occurrences for a specific user
+    def occurrences_for_user(user_id)
+      occurrences.for_user(user_id)
+    end
+
+    # Returns occurrences for a specific user email
+    def occurrences_for_user_email(email)
+      occurrences.for_user_email(email)
+    end
+
+    # Returns the count of affected users (unique user_ids)
+    def affected_users_count
+      occurrences.where.not(user_id: nil).distinct.count(:user_id)
     end
 
     # Retrieves git blame information for this error
