@@ -7,3 +7,5 @@ pkg/
 test/dummy/storage/
 test/dummy/db/schema.rb
 test/dummy/public/assets/
+node_modules/
+package-lock.json
