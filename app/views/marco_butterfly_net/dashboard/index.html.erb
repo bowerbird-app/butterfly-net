@@ -4,7 +4,7 @@
       <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
           <h1 class="text-base font-semibold text-gray-900">Error Tracking Dashboard</h1>
-          <p class="mt-2 text-sm text-gray-700">Total errors: <%= @total_count %></p>
+          <p class="mt-2 text-sm text-gray-700">Total errors: <%= @pagy.count %></p>
         </div>
       </div>
       <div class="mt-8 flow-root">
@@ -15,7 +15,7 @@
                 <p class="text-base">No errors recorded yet.</p>
               </div>
             <% else %>
-              <div class="overflow-hidden shadow ring-1 ring-gray-200 ring-opacity-5 sm:rounded-lg">
+              <div id="error-logs-container" class="overflow-hidden shadow ring-1 ring-gray-200 ring-opacity-5 sm:rounded-lg">
                 <table class="min-w-full divide-y divide-gray-200">
                   <thead class="bg-gray-50">
                     <tr>
@@ -84,19 +84,22 @@
                         </td>
                       </tr>
                     <% end %>
+                    <!-- Sentinel element for infinite scroll detection -->
+                    <tr id="scroll-sentinel" style="height: 1px;"></tr>
                   </tbody>
                 </table>
+                
+                <!-- Loading indicator -->
+                <div id="loading-indicator" class="hidden text-center py-4">
+                  <div class="inline-flex items-center gap-2 text-gray-600">
+                    <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading more errors...</span>
+                  </div>
+                </div>
               </div>
-
-              <nav class="flex items-center justify-center gap-4 pt-6">
-                <% if @page > 1 %>
-                  <%= link_to "← Previous", dashboard_index_path(page: @page - 1), class: "inline-block rounded bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" %>
-                <% end %>
-                <span class="text-gray-700 text-sm">Page <%= @page %> of <%= @total_pages %></span>
-                <% if @page < @total_pages %>
-                  <%= link_to "Next →", dashboard_index_path(page: @page + 1), class: "inline-block rounded bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" %>
-                <% end %>
-              </nav>
             <% end %>
           </div>
         </div>

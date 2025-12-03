@@ -40,4 +40,3 @@ namespace :marco_butterfly_net do
     end
   end
 end
-
