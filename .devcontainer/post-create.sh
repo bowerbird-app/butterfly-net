@@ -12,7 +12,7 @@ bundle install
 echo "🗄️  Setting up test database..."
 cd test/dummy
 bin/rails marco_butterfly_net:install:migrations
-bin/rails db:setup
+bin/rails db:setup db:migrate
 bin/rails db:seed
 
 echo "✅ Development environment ready!"
