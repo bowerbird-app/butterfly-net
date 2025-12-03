@@ -9,7 +9,7 @@ MarcoButterflyNet is a self-hosted error tracking dashboard for Rails applicatio
 - **Rack Middleware**: Catches exceptions from the entire stack, not just controller errors
 - **Persistent Storage**: Stores errors in a database table (namespaced to avoid conflicts)
 - **Dashboard UI**: Clean, paginated interface to browse and inspect errors
-- **Scoped Styling**: CSS is namespaced to avoid conflicts with host application styles
+- **Tailwind CSS Styling**: Uses Tailwind CSS v4 for a modern, responsive design that won't conflict with host application styles
 - **User Tracking**: Track which users are affected by each error with separate occurrence records
 - **Error Status Management**: Track bug resolution status (open, in_progress, resolved, dismissed)
 - **Git Blame Integration**: Identify who introduced the code that caused an error
@@ -407,6 +407,55 @@ When creating a GitHub issue from an error:
   - Request details (path, method, user agent)
   - Stack trace (collapsed for readability)
 - Issues are automatically labeled with `bug` and `error-tracking`
+
+## Styling with Tailwind CSS
+
+MarcoButterflyNet uses [Tailwind CSS v4](https://tailwindcss.com/) for styling via the [tailwindcss-ruby](https://github.com/rails/tailwindcss-ruby) gem. The styles are pre-compiled and included in the gem, so you don't need to configure anything for normal use.
+
+### For Gem Developers
+
+If you're contributing to this gem and need to modify the styles:
+
+#### Building CSS
+
+The gem includes rake tasks for building Tailwind CSS:
+
+```bash
+# Build CSS (minified)
+bundle exec rake app:marco_butterfly_net:tailwindcss:build
+
+# Watch mode for development
+bundle exec rake app:marco_butterfly_net:tailwindcss:watch
+```
+
+#### Source Files
+
+- **Input**: `app/assets/stylesheets/marco_butterfly_net/tailwind.css` - Tailwind directives and source configuration
+- **Output**: `app/assets/stylesheets/marco_butterfly_net/application.css` - Compiled CSS (committed to the repo)
+
+#### Tailwind Configuration
+
+Tailwind CSS v4 uses CSS-based configuration. The source paths are configured in `tailwind.css`:
+
+```css
+@import "tailwindcss";
+
+@source "../../../views/marco_butterfly_net/**/*.html.erb";
+@source "../../../helpers/marco_butterfly_net/**/*.rb";
+@source "../../../controllers/marco_butterfly_net/**/*.rb";
+```
+
+### Style Isolation
+
+The dashboard uses standard Tailwind utility classes. The styles are loaded via the engine's layout file and are scoped to the engine's views only. This means:
+
+- MarcoButterflyNet styles won't interfere with your host application's styles
+- Your application's Tailwind setup (if any) operates independently
+- The engine uses its own compiled CSS bundle
+
+### Host Application Considerations
+
+No configuration is needed in your host application. The gem's stylesheet is automatically served via Propshaft when you mount the engine. The stylesheet is referenced using `stylesheet_link_tag "marco_butterfly_net/application"` in the engine's layout.
 
 ## Terminal Command
 

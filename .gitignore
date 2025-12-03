@@ -6,3 +6,4 @@ tmp/
 pkg/
 test/dummy/storage/
 test/dummy/db/schema.rb
+test/dummy/public/assets/

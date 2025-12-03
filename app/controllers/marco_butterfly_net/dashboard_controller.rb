@@ -11,6 +11,7 @@ module MarcoButterflyNet
       @page = 1 if @page < 1
 
       @error_logs = ErrorLog.recent
+                            .includes(:occurrences)
                             .offset((@page - 1) * PER_PAGE)
                             .limit(PER_PAGE)
 
