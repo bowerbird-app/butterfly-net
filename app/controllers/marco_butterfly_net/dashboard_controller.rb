@@ -10,8 +10,12 @@ module MarcoButterflyNet
       respond_to do |format|
         format.html
         format.json do
+          # Preload affected user counts to avoid N+1 queries
+          error_log_ids = @error_logs.pluck(:id)
+          affected_counts = calculate_affected_counts(error_log_ids)
+
           render json: {
-            error_logs: @error_logs.map { |log| error_log_json(log) },
+            error_logs: @error_logs.map { |log| error_log_json(log, affected_counts[log.id] || 0) },
             pagy: pagy_metadata(@pagy)
           }
         end
@@ -60,11 +64,15 @@ module MarcoButterflyNet
 
     private
 
-    def error_log_json(error_log)
+    def error_log_json(error_log, affected_count = nil)
       last_occurrence = error_log.occurrences.order(created_at: :desc).first
-      unique_users = error_log.occurrences.where.not(user_id: nil).distinct.count(:user_id)
-      unique_emails = error_log.occurrences.where.not(user_email: nil).distinct.count(:user_email)
-      affected_count = [ unique_users, unique_emails ].max
+
+      # Calculate affected count if not provided
+      if affected_count.nil?
+        unique_users = error_log.occurrences.where.not(user_id: nil).distinct.count(:user_id)
+        unique_emails = error_log.occurrences.where.not(user_email: nil).distinct.count(:user_email)
+        affected_count = [ unique_users, unique_emails ].max
+      end
 
       {
         id: error_log.id,
@@ -78,6 +86,28 @@ module MarcoButterflyNet
         github_issue_url: error_log.github_issue_url,
         has_github_issue: error_log.has_github_issue?
       }
+    end
+
+    def calculate_affected_counts(error_log_ids)
+      # Calculate affected user counts in a single query to avoid N+1
+      user_counts = ErrorOccurrence
+        .where(error_log_id: error_log_ids)
+        .where.not(user_id: nil)
+        .group(:error_log_id)
+        .distinct
+        .count(:user_id)
+
+      email_counts = ErrorOccurrence
+        .where(error_log_id: error_log_ids)
+        .where.not(user_email: nil)
+        .group(:error_log_id)
+        .distinct
+        .count(:user_email)
+
+      # Merge and take the max count for each error log
+      error_log_ids.index_with do |id|
+        [ user_counts[id] || 0, email_counts[id] || 0 ].max
+      end
     end
 
     def pagy_metadata(pagy)

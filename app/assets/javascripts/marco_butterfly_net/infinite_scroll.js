@@ -60,8 +60,8 @@
           this.currentPage = nextPage;
 
           // Check if there are more pages
-          if (!data.pagy.next) {
-            this.hasMore = false;
+          this.hasMore = !!data.pagy.next;
+          if (!this.hasMore) {
             this.observer.disconnect();
           }
         } else {
@@ -165,7 +165,7 @@
     }
 
     truncate(text, length) {
-      if (text.length <= length) return text;
+      if (!text || text.length <= length) return text || '';
       return text.substring(0, length - 3) + '...';
     }
 
