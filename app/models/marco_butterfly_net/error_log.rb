@@ -9,6 +9,9 @@ module MarcoButterflyNet
 
     validates :exception_class, presence: true
 
+    # Callback to set resolved_at timestamp when status changes to resolved
+    before_update :set_resolved_at
+
     # Returns backtrace as array (handles text storage)
     def backtrace_lines
       return [] if backtrace.blank?
@@ -206,6 +209,16 @@ module MarcoButterflyNet
         issue_url: github_issue_url,
         error_message: "Issue already exists"
       )
+    end
+
+    # Sets resolved_at timestamp when status changes to 'resolved'
+    def set_resolved_at
+      if status_changed? && status == "resolved"
+        self.resolved_at = Time.current
+      elsif status_changed? && status_was == "resolved"
+        # Clear resolved_at if status changes away from resolved
+        self.resolved_at = nil
+      end
     end
   end
 end
