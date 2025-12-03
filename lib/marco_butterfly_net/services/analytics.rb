@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'set'
+
 module MarcoButterflyNet
   module Services
     # Service for calculating analytics and metrics for the error tracking dashboard
@@ -15,20 +17,20 @@ module MarcoButterflyNet
       def total_affected_users_today
         today_start = Time.current.beginning_of_day
         
-        user_ids = ErrorOccurrence
+        # Count distinct users by collecting unique user_id or user_email
+        # A user is identified by either user_id or user_email, whichever is present
+        occurrences = ErrorOccurrence
           .where("created_at >= ?", today_start)
-          .where.not(user_id: nil)
-          .distinct
-          .count(:user_id)
+          .select(:user_id, :user_email)
         
-        user_emails = ErrorOccurrence
-          .where("created_at >= ?", today_start)
-          .where.not(user_email: nil)
-          .distinct
-          .count(:user_email)
+        unique_users = Set.new
+        occurrences.each do |occ|
+          # Use user_id as primary identifier, fall back to user_email
+          identifier = occ.user_id.presence || occ.user_email
+          unique_users.add(identifier) if identifier.present?
+        end
         
-        # Return the max to avoid double-counting users who have both ID and email
-        [ user_ids, user_emails ].max
+        unique_users.size
       end
 
       # Returns the average time from error creation to resolution in hours
@@ -89,31 +91,25 @@ module MarcoButterflyNet
       def affected_users_over_time(days: 30)
         start_date = (Date.current - days.days).beginning_of_day
         
-        # Get occurrences grouped by date with distinct user counts
-        daily_data = ErrorOccurrence
-          .where("created_at >= ?", start_date)
-          .group("DATE(created_at)")
-          .select("DATE(created_at) as date")
-        
         # Count distinct users per day
         results = {}
         (0...days).each do |i|
           date = Date.current - i.days
           date_str = date.to_s
           
-          user_ids = ErrorOccurrence
+          # Get all occurrences for this date
+          occurrences = ErrorOccurrence
             .where("DATE(created_at) = ?", date)
-            .where.not(user_id: nil)
-            .distinct
-            .count(:user_id)
+            .select(:user_id, :user_email)
           
-          user_emails = ErrorOccurrence
-            .where("DATE(created_at) = ?", date)
-            .where.not(user_email: nil)
-            .distinct
-            .count(:user_email)
+          # Count unique users using user_id or user_email as identifier
+          unique_users = Set.new
+          occurrences.each do |occ|
+            identifier = occ.user_id.presence || occ.user_email
+            unique_users.add(identifier) if identifier.present?
+          end
           
-          results[date_str] = [ user_ids, user_emails ].max
+          results[date_str] = unique_users.size
         end
         
         results.sort.map { |date, count| { date: date, count: count } }
