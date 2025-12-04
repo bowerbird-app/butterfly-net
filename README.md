@@ -274,6 +274,23 @@ MarcoButterflyNet can identify who introduced the code that caused an error by u
 - The author's name and email
 - The date of the commit
 
+### Automatic Blame Fetching
+
+Git blame information is automatically fetched in the background when new errors are logged. This happens asynchronously using ActiveJob, so it doesn't slow down your application when errors occur.
+
+The gem works with whatever ActiveJob backend your application uses:
+- **Development**: Uses Rails' built-in async adapter by default
+- **Production**: Works seamlessly with Sidekiq, Solid Queue, GoodJob, Resque, Delayed Job, or any other ActiveJob adapter
+
+**No configuration is required.** The automatic blame fetching works out of the box:
+
+1. When a new error is logged with a backtrace, a background job is automatically enqueued
+2. The job fetches git blame information asynchronously
+3. Blame information appears in the dashboard within seconds of the error occurring
+4. If blame information can't be fetched (e.g., git not available), the error is logged but the application continues normally
+
+You can still manually fetch blame information for existing errors using the `fetch_blame_info` method on an `ErrorLog` instance.
+
 ### Configuration
 
 To enable git blame functionality, ensure your application has access to the git repository. By default, the engine uses `Rails.root` as the repository path. You can customize this in your initializer:
