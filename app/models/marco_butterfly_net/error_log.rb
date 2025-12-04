@@ -12,6 +12,9 @@ module MarcoButterflyNet
     # Callback to set resolved_at timestamp when status changes to resolved
     before_update :set_resolved_at
 
+    # Automatically fetch blame information in background when error log is created
+    after_create_commit :enqueue_blame_fetch, if: :should_auto_fetch_blame?
+
     # Returns backtrace as array (handles text storage)
     def backtrace_lines
       return [] if backtrace.blank?
@@ -219,6 +222,16 @@ module MarcoButterflyNet
         # Clear resolved_at if status changes away from resolved
         self.resolved_at = nil
       end
+    end
+
+    # Checks if blame info should be automatically fetched
+    def should_auto_fetch_blame?
+      backtrace.present? && !has_blame_info?
+    end
+
+    # Enqueues background job to fetch blame information
+    def enqueue_blame_fetch
+      FetchBlameJob.perform_later(id)
     end
   end
 end
