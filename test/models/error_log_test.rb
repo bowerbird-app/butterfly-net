@@ -347,4 +347,227 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
       error_log.update!(message: "Updated message")
     end
   end
+
+  # Tests for GitHub issue scopes
+  test "with_github_issue scope returns only errors with github_issue_number" do
+    with_issue = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "ErrorWithIssue",
+      github_issue_number: 123
+    )
+
+    without_issue = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "ErrorWithoutIssue"
+    )
+
+    errors_with_issue = MarcoButterflyNet::ErrorLog.with_github_issue
+
+    assert_equal 1, errors_with_issue.count
+    assert_includes errors_with_issue, with_issue
+    assert_not_includes errors_with_issue, without_issue
+  end
+
+  test "without_github_issue scope returns only errors without github_issue_number" do
+    with_issue = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "ErrorWithIssue",
+      github_issue_number: 123
+    )
+
+    without_issue = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "ErrorWithoutIssue"
+    )
+
+    errors_without_issue = MarcoButterflyNet::ErrorLog.without_github_issue
+
+    assert_equal 1, errors_without_issue.count
+    assert_includes errors_without_issue, without_issue
+    assert_not_includes errors_without_issue, with_issue
+  end
+
+  test "has_github_issue? returns true when github_issue_number present" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      github_issue_number: 456
+    )
+
+    assert error_log.has_github_issue?
+  end
+
+  test "has_github_issue? returns false when github_issue_number is nil" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      github_issue_number: nil
+    )
+
+    assert_not error_log.has_github_issue?
+  end
+
+  # Tests for blame information methods
+  test "has_blame_info? returns true when blame_file and blame_commit_sha present" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      blame_file: "app/models/user.rb",
+      blame_commit_sha: "abc123"
+    )
+
+    assert error_log.has_blame_info?
+  end
+
+  test "has_blame_info? returns false when blame fields are missing" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError"
+    )
+
+    assert_not error_log.has_blame_info?
+  end
+
+  test "has_blame_info? returns false when only blame_file is set" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      blame_file: "app/models/user.rb",
+      blame_commit_sha: nil
+    )
+
+    assert_not error_log.has_blame_info?
+  end
+
+  test "has_blame_info? returns false when only blame_commit_sha is set" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      blame_file: nil,
+      blame_commit_sha: "abc123"
+    )
+
+    assert_not error_log.has_blame_info?
+  end
+
+  # Tests for user email filtering
+  test "affecting_user_email scope filters errors by user email" do
+    user_email = "test@example.com"
+    other_email = "other@example.com"
+
+    error1 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1")
+    error1.record_occurrence(user_email: user_email)
+
+    error2 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+    error2.record_occurrence(user_email: other_email)
+
+    user_errors = MarcoButterflyNet::ErrorLog.affecting_user_email(user_email)
+
+    assert_equal 1, user_errors.count
+    assert_equal "Error1", user_errors.first.exception_class
+  end
+
+  test "affecting_user_email scope returns empty when email not found" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1")
+    error_log.record_occurrence(user_email: "other@example.com")
+
+    user_errors = MarcoButterflyNet::ErrorLog.affecting_user_email("notfound@example.com")
+
+    assert_equal 0, user_errors.count
+  end
+
+  test "occurrences_for_user_email returns only occurrences for that email" do
+    user_email = "test@example.com"
+    other_email = "other@example.com"
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence(user_email: user_email)
+    error_log.record_occurrence(user_email: user_email)
+    error_log.record_occurrence(user_email: other_email)
+
+    user_occurrences = error_log.occurrences_for_user_email(user_email)
+
+    assert_equal 2, user_occurrences.count
+    assert user_occurrences.all? { |o| o.user_email == user_email }
+  end
+
+  test "occurrences_for_user_email returns empty array when email not found" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence(user_email: "other@example.com")
+
+    user_occurrences = error_log.occurrences_for_user_email("notfound@example.com")
+
+    assert_equal 0, user_occurrences.count
+  end
+
+  # Tests for resolved timestamp callback
+  test "resolved_at is set when status changes to 'resolved'" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      status: "open"
+    )
+
+    travel_to Time.zone.local(2025, 12, 4, 12, 0, 0) do
+      error_log.update!(status: "resolved")
+    end
+
+    error_log.reload
+    assert_not_nil error_log.resolved_at
+    assert_equal Time.zone.local(2025, 12, 4, 12, 0, 0), error_log.resolved_at
+  end
+
+  test "resolved_at is NOT set when creating with status 'resolved'" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      status: "resolved"
+    )
+
+    assert_nil error_log.resolved_at
+  end
+
+  test "resolved_at is cleared when status changes from 'resolved' to another status" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      status: "open"
+    )
+
+    error_log.update!(status: "resolved")
+    assert_not_nil error_log.resolved_at
+
+    error_log.update!(status: "open")
+    error_log.reload
+    assert_nil error_log.resolved_at
+  end
+
+  test "resolved_at remains unchanged when status doesn't change" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      status: "open"
+    )
+
+    error_log.update!(status: "resolved")
+    original_resolved_at = error_log.resolved_at
+
+    travel_to 1.hour.from_now do
+      error_log.update!(message: "Updated message")
+    end
+
+    error_log.reload
+    assert_equal original_resolved_at, error_log.resolved_at
+  end
+
+  test "resolved_at updates to current time when re-resolving an error" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      status: "open"
+    )
+
+    # First resolution
+    travel_to Time.zone.local(2025, 12, 4, 12, 0, 0) do
+      error_log.update!(status: "resolved")
+    end
+    first_resolved_at = error_log.reload.resolved_at
+
+    # Change status away from resolved
+    error_log.update!(status: "open")
+
+    # Re-resolve
+    travel_to Time.zone.local(2025, 12, 4, 14, 0, 0) do
+      error_log.update!(status: "resolved")
+    end
+
+    error_log.reload
+    assert_not_equal first_resolved_at, error_log.resolved_at
+    assert_equal Time.zone.local(2025, 12, 4, 14, 0, 0), error_log.resolved_at
+  end
 end
