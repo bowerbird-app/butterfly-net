@@ -89,7 +89,7 @@ bundle exec rake install
 
 **Testing in Host Apps**:
 - Use local gem path in Gemfile for testing: `gem 'marco_butterfly_net', path: '../marco-butterfly-net'`
-- Test migrations: `rails marco_butterfly_net:install:migrations && rails db:migrate`
+- Test migrations: `bin/rails marco_butterfly_net:install:migrations && bin/rails db:migrate`
 - Test mounting the engine and all features
 
 ## 6. Tone & Output
@@ -155,9 +155,9 @@ First, check for syntax errors that might have been introduced by merge conflict
 
 **Pre-check for autoloading issues**:
 ```bash
-bin/rails zeitwerk:check
+cd test/dummy && bin/rails zeitwerk:check
 ```
-Run this before tests to detect constant-loading problems early.
+Run this before tests to detect constant-loading problems early (must be run from the dummy app context).
 
 **For Minitest projects** (this gem):
 ```bash
@@ -168,7 +168,7 @@ bundle exec rake test
 ```bash
 bin/rubocop
 ```
-If available, ensure code style compliance.
+The project has a bin/rubocop binstub - use it to ensure code style compliance.
 
 **Ensure database migrations are valid** if any were modified:
 ```bash
