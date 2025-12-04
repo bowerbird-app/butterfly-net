@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Tailwind CSS Auto-rebuild Agent
+# This script watches for changes in view files, stylesheets, and helper files
+# and automatically rebuilds Tailwind CSS when changes are detected.
+
+require "fileutils"
+require "digest"
+
+# Configuration
+WATCH_PATHS = [
+  "app/views/marco_butterfly_net/**/*.html.erb",
+  "app/helpers/marco_butterfly_net/**/*.rb",
+  "app/assets/stylesheets/marco_butterfly_net/tailwind.css"
+].freeze
+
+BUILD_COMMAND = "bundle exec rake app:marco_butterfly_net:tailwindcss:build"
+CHECK_INTERVAL = 1 # seconds
+
+# Track file checksums
+file_checksums = {}
+
+def calculate_checksum(file)
+  Digest::MD5.file(file).hexdigest
+rescue StandardError
+  nil
+end
+
+def get_watched_files
+  files = []
+  WATCH_PATHS.each do |pattern|
+    files.concat(Dir.glob(pattern))
+  end
+  files
+end
+
+def rebuild_css
+  puts "\n🔨 Rebuilding Tailwind CSS..."
+  system(BUILD_COMMAND)
+  puts "✅ Build complete at #{Time.now.strftime('%H:%M:%S')}"
+end
+
+puts "👀 Watching for changes in:"
+WATCH_PATHS.each { |path| puts "   - #{path}" }
+puts "\n💡 Press Ctrl+C to stop\n\n"
+
+# Initial build
+rebuild_css
+
+# Main watch loop
+begin
+  loop do
+    watched_files = get_watched_files
+    changed = false
+
+    watched_files.each do |file|
+      current_checksum = calculate_checksum(file)
+      next unless current_checksum
+
+      if file_checksums[file] != current_checksum
+        puts "📝 Change detected: #{file}" unless file_checksums[file].nil?
+        file_checksums[file] = current_checksum
+        changed = true
+      end
+    end
+
+    rebuild_css if changed
+
+    sleep CHECK_INTERVAL
+  end
+rescue Interrupt
+  puts "\n\n👋 Stopped watching. Goodbye!"
+  exit 0
+end

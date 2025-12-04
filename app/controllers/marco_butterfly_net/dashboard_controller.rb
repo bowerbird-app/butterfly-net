@@ -62,6 +62,11 @@ module MarcoButterflyNet
       redirect_to dashboard_path(@error_log)
     end
 
+    # Renders the analytics dashboard view
+    def analytics
+      # No data needed here; JavaScript will fetch data from API endpoints
+    end
+
     private
 
     def error_log_json(error_log, affected_count = nil)

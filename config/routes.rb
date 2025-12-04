@@ -5,5 +5,16 @@ MarcoButterflyNet::Engine.routes.draw do
       post :create_issue
     end
   end
+  
+  # Analytics routes
+  namespace :analytics do
+    get "summary"
+    get "top_errors"
+    get "time_series"
+  end
+  
+  # Analytics dashboard view
+  get "analytics", to: "dashboard#analytics"
+  
   root to: "dashboard#index"
 end

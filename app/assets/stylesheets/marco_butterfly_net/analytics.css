@@ -1,0 +1,30 @@
+/* Analytics Dashboard Styles */
+
+/* Ensure chart containers have proper sizing */
+#status-chart,
+#top-errors-chart,
+#users-chart,
+#occurrences-chart,
+#new-errors-chart {
+  min-height: 300px;
+}
+
+/* Loading state styling */
+.analytics-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  color: #6B7280;
+}
+
+/* Responsive chart adjustments */
+@media (max-width: 640px) {
+  #status-chart,
+  #top-errors-chart,
+  #users-chart,
+  #occurrences-chart,
+  #new-errors-chart {
+    min-height: 250px;
+  }
+}
