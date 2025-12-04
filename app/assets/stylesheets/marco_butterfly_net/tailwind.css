@@ -10,3 +10,9 @@
 @source "../../../views/marco_butterfly_net/**/*.html.erb";
 @source "../../../helpers/marco_butterfly_net/**/*.rb";
 @source "../../../controllers/marco_butterfly_net/**/*.rb";
+
+@layer utilities {
+  .hidden {
+    display: none !important;
+  }
+}
