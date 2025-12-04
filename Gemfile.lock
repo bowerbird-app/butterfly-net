@@ -94,6 +94,7 @@ GEM
     connection_pool (2.5.5)
     crass (1.0.6)
     date (3.5.0)
+    docile (1.4.1)
     drb (2.2.3)
     erb (6.0.0)
     erubi (1.13.1)
@@ -266,6 +267,12 @@ GEM
       addressable (>= 2.3.5)
       faraday (>= 0.17.3, < 3)
     securerandom (0.4.1)
+    simplecov (0.22.0)
+      docile (~> 1.1)
+      simplecov-html (~> 0.11)
+      simplecov_json_formatter (~> 0.1)
+    simplecov-html (0.13.2)
+    simplecov_json_formatter (0.1.4)
     sqlite3 (2.8.0-aarch64-linux-gnu)
     sqlite3 (2.8.0-aarch64-linux-musl)
     sqlite3 (2.8.0-arm-linux-gnu)
@@ -314,6 +321,7 @@ DEPENDENCIES
   propshaft
   puma
   rubocop-rails-omakase
+  simplecov
   sqlite3
 
 BUNDLED WITH

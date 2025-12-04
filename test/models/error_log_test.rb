@@ -3,6 +3,8 @@
 require "test_helper"
 
 class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
   setup do
     MarcoButterflyNet::ErrorOccurrence.delete_all
     MarcoButterflyNet::ErrorLog.delete_all
@@ -295,6 +297,54 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
       )
 
       assert error_log.valid?, "Expected status '#{status}' to be valid"
+    end
+  end
+
+  # Tests for automatic blame fetching
+  test "creating an error log with backtrace enqueues a FetchBlameJob" do
+    assert_enqueued_with(job: MarcoButterflyNet::FetchBlameJob) do
+      error_log = MarcoButterflyNet::ErrorLog.create!(
+        exception_class: "RuntimeError",
+        message: "Test error",
+        backtrace: "/app/models/user.rb:42:in `save'"
+      )
+    end
+  end
+
+  test "creating an error log without backtrace does NOT enqueue a job" do
+    assert_no_enqueued_jobs(only: MarcoButterflyNet::FetchBlameJob) do
+      MarcoButterflyNet::ErrorLog.create!(
+        exception_class: "RuntimeError",
+        message: "Test error",
+        backtrace: nil
+      )
+    end
+  end
+
+  test "creating an error log that already has blame info does NOT enqueue a job" do
+    assert_no_enqueued_jobs(only: MarcoButterflyNet::FetchBlameJob) do
+      MarcoButterflyNet::ErrorLog.create!(
+        exception_class: "RuntimeError",
+        message: "Test error",
+        backtrace: "/app/models/user.rb:42:in `save'",
+        blame_file: "app/models/user.rb",
+        blame_line_number: 42,
+        blame_commit_sha: "abc123",
+        blame_author_name: "Test Author",
+        blame_author_email: "test@example.com",
+        blame_commit_date: Time.current
+      )
+    end
+  end
+
+  test "updating an existing error log does NOT enqueue a job" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Original message"
+    )
+
+    assert_no_enqueued_jobs(only: MarcoButterflyNet::FetchBlameJob) do
+      error_log.update!(message: "Updated message")
     end
   end
 end

@@ -10,6 +10,9 @@ gem "pg" # PostgreSQL adapter for devcontainer
 
 gem "propshaft"
 
+# Code coverage
+gem "simplecov", require: false
+
 # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
 gem "rubocop-rails-omakase", require: false
 
