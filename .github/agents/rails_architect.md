@@ -153,11 +153,11 @@ If conflicts occur during merge:
 ### Step 5: Verify the codebase
 First, check for syntax errors that might have been introduced by merge conflict resolution:
 
-**Pre-check for autoloading issues**:
+**Pre-check for autoloading issues** (run from project root):
 ```bash
 cd test/dummy && bin/rails zeitwerk:check
 ```
-Run this before tests to detect constant-loading problems early (run from project root, which will cd into the dummy app and use its bin/rails).
+This changes into the dummy app directory and uses its bin/rails to detect constant-loading problems early.
 
 **For Minitest projects** (this gem):
 ```bash
@@ -170,7 +170,7 @@ bin/rubocop
 ```
 The project has a bin/rubocop binstub - use it to ensure code style compliance.
 
-**Ensure database migrations are valid** if any were modified:
+**Ensure database migrations are valid** if any were modified (run from project root):
 ```bash
 cd test/dummy && bin/rails db:migrate:status
 ```
