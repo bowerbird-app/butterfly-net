@@ -58,10 +58,18 @@ module MarcoButterflyNet
     }
 
     # Scope for errors affecting a specific user
-    scope :affecting_user, ->(user_id) { joins(:occurrences).where(occurrences: { user_id: user_id }).distinct }
+    scope :affecting_user, ->(user_id) {
+      where(
+        id: ErrorOccurrence.select(:error_log_id).where(user_id: user_id)
+      )
+    }
 
     # Scope for errors affecting a specific user email
-    scope :affecting_user_email, ->(email) { joins(:occurrences).where(occurrences: { user_email: email }).distinct }
+    scope :affecting_user_email, ->(email) {
+      where(
+        id: ErrorOccurrence.select(:error_log_id).where(user_email: email)
+      )
+    }
 
     # Status constants
     STATUSES = %w[open in_progress resolved dismissed].freeze
@@ -115,6 +123,16 @@ module MarcoButterflyNet
     def self.find_or_create_with_occurrence(exception_class:, message:, user_id: nil, user_email: nil, request_params: nil, user_agent: nil, backtrace: nil)
       error_log = find_or_create_by!(exception_class: exception_class, message: message) do |log|
         log.backtrace = backtrace
+        log.request_params = request_params
+        log.user_agent = user_agent
+      end
+
+      # Update request_params and user_agent on existing records if they're missing
+      if error_log.request_params.nil? && request_params.present?
+        error_log.update(request_params: request_params)
+      end
+      if error_log.user_agent.nil? && user_agent.present?
+        error_log.update(user_agent: user_agent)
       end
 
       error_log.record_occurrence(
