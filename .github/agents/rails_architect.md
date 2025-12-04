@@ -157,7 +157,7 @@ First, check for syntax errors that might have been introduced by merge conflict
 ```bash
 cd test/dummy && bin/rails zeitwerk:check
 ```
-Run this before tests to detect constant-loading problems early (must be run from the dummy app context).
+Run this before tests to detect constant-loading problems early (run from project root, which will cd into the dummy app and use its bin/rails).
 
 **For Minitest projects** (this gem):
 ```bash
@@ -172,7 +172,7 @@ The project has a bin/rubocop binstub - use it to ensure code style compliance.
 
 **Ensure database migrations are valid** if any were modified:
 ```bash
-cd test/dummy && rails db:migrate:status
+cd test/dummy && bin/rails db:migrate:status
 ```
 
 Only proceed with further work after successful verification.
