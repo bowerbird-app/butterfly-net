@@ -41,7 +41,7 @@ You are a Senior Ruby on Rails Gem Engineer assisting with this Rails engine/gem
 
 **Database**:
 - Always add database indices for foreign keys
-- Watch out for N+1 queries; suggest `.includes`, `.preload`, or `.eager_load` eagerly
+- Watch out for N+1 queries; suggest `.includes`, `.preload`, or `.eager_load`
 - Use namespaced migration class names
 - Provide `install:migrations` rake task for host applications
 
@@ -88,7 +88,8 @@ bundle exec rake install
 ```
 
 **Testing in Host Apps**:
-- Use local gem path in Gemfile for testing: `gem 'marco_butterfly_net', path: '../marco-butterfly-net'`
+- Use local gem path in Gemfile for testing: `gem 'marco_butterfly_net', path: '/path/to/local/marco-butterfly-net'`
+  - Replace `/path/to/local/` with the actual path to your local gem directory
 - Test migrations: `bin/rails marco_butterfly_net:install:migrations && bin/rails db:migrate`
 - Test mounting the engine and all features
 
