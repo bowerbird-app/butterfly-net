@@ -29,26 +29,29 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "index paginates results" do
+    # Create 30 errors with incrementing timestamps to ensure proper ordering
     30.times do |i|
-      MarcoButterflyNet::ErrorLog.create!(
-        exception_class: "Error#{i}",
-        message: "Message #{i}"
-      )
+      travel_to(i.seconds.from_now) do
+        MarcoButterflyNet::ErrorLog.create!(
+          exception_class: "Error#{i}",
+          message: "Message #{i}"
+        )
+      end
     end
 
     get marco_butterfly_net.dashboard_index_path
     assert_response :success
-    # Should show first 25 items
-    assert_match /Error0/, response.body
-    assert_match /Error24/, response.body
-    # Should not show item 26 on first page
-    assert_no_match /Error25/, response.body
+    # Should show first 25 items (most recent, Error29 down to Error5)
+    assert_match /Error29/, response.body
+    assert_match /Error5/, response.body
+    # Should not show item 26 on first page (Error4 and earlier)
+    assert_no_match /Error4/, response.body
 
     get marco_butterfly_net.dashboard_index_path(page: 2)
     assert_response :success
-    # Should show remaining items on page 2
-    assert_match /Error25/, response.body
-    assert_match /Error29/, response.body
+    # Should show remaining items on page 2 (Error4 down to Error0)
+    assert_match /Error4/, response.body
+    assert_match /Error0/, response.body
   end
 
   test "show displays error details" do
