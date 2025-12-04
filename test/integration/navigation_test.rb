@@ -5,6 +5,7 @@ require "test_helper"
 class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
   setup do
     MarcoButterflyNet.clear_captured_exceptions
+    MarcoButterflyNet::ErrorOccurrence.delete_all
     MarcoButterflyNet::ErrorLog.delete_all
   end
 

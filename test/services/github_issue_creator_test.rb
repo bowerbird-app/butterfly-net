@@ -5,6 +5,7 @@ require "test_helper"
 class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestCase
   setup do
     MarcoButterflyNet.reset_configuration!
+    MarcoButterflyNet::ErrorOccurrence.delete_all
     MarcoButterflyNet::ErrorLog.delete_all
   end
 

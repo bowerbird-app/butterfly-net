@@ -4,8 +4,8 @@ require "test_helper"
 
 class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    MarcoButterflyNet::ErrorLog.delete_all
     MarcoButterflyNet::ErrorOccurrence.delete_all
+    MarcoButterflyNet::ErrorLog.delete_all
   end
 
   test "summary returns JSON with all KPI metrics" do

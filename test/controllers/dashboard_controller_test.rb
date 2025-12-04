@@ -4,6 +4,7 @@ require "test_helper"
 
 class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
   setup do
+    MarcoButterflyNet::ErrorOccurrence.delete_all
     MarcoButterflyNet::ErrorLog.delete_all
   end
 

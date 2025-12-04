@@ -9,3 +9,4 @@ test/dummy/db/schema.rb
 test/dummy/public/assets/
 node_modules/
 package-lock.json
+coverage/
