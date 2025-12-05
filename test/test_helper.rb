@@ -21,6 +21,19 @@ ActiveRecord::Migrator.migrations_paths = [ File.expand_path("dummy/db/migrate",
 # ActiveRecord::Migrator.migrations_paths << File.expand_path("../db/migrate", __dir__)
 require "rails/test_help"
 
+# Eagerly load lib files for coverage tracking
+if ENV["COVERAGE"]
+  # Explicitly require lib files so SimpleCov can track them
+  require_relative "../lib/marco_butterfly_net"
+  require_relative "../lib/marco_butterfly_net/version"
+  require_relative "../lib/marco_butterfly_net/configuration"
+  require_relative "../lib/marco_butterfly_net/engine"
+  require_relative "../lib/marco_butterfly_net/middleware/exception_catcher"
+  require_relative "../lib/marco_butterfly_net/services/analytics"
+  require_relative "../lib/marco_butterfly_net/services/git_blame"
+  require_relative "../lib/marco_butterfly_net/services/github_issue_creator"
+end
+
 # Load fixtures from the engine
 if ActiveSupport::TestCase.respond_to?(:fixture_paths=)
   ActiveSupport::TestCase.fixture_paths = [ File.expand_path("fixtures", __dir__) ]
