@@ -5,7 +5,7 @@
 # For format details, see: https://gh.io/customagents/config
 
 name: Rails Gem Architect
-description:
+description: This is a replicate of rails_architect agent
 ---
 
 # My Agent
