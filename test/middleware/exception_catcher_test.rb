@@ -175,4 +175,138 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
     assert_includes filtered, "password=[FILTERED]"
     assert_includes filtered, "token=[FILTERED]"
   end
+
+  test "handles blank query string" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    assert_equal "", middleware.send(:filter_query_string, "")
+    assert_nil middleware.send(:filter_query_string, nil)
+  end
+
+  test "handles deep nested params with recursion limit" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    # Create deeply nested hash
+    params = { "level1" => { "password" => "secret" } }
+    
+    filtered = middleware.send(:filter_params, params)
+    assert_equal "[FILTERED]", filtered["level1"]["password"]
+  end
+
+  test "handles non-hash params" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    assert_equal "string", middleware.send(:filter_params, "string")
+    assert_equal [ 1, 2, 3 ], middleware.send(:filter_params, [ 1, 2, 3 ])
+  end
+
+  test "safe_params rescues errors" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    
+    request = Object.new
+    def request.params
+      raise StandardError, "params error"
+    end
+
+    result = middleware.send(:safe_params, request)
+    assert_equal({}, result)
+  end
+
+  test "persist_exception creates error log" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    
+    exception = StandardError.new("Test error")
+    exception.set_backtrace([ "line1", "line2" ])
+    
+    env = {
+      "REQUEST_METHOD" => "POST",
+      "PATH_INFO" => "/api/test",
+      "QUERY_STRING" => "key=value",
+      "HTTP_USER_AGENT" => "TestAgent/1.0",
+      "error_tracking.user_id" => "user123",
+      "error_tracking.user_email" => "user@example.com",
+      "rack.input" => StringIO.new
+    }
+
+    middleware.send(:persist_exception, exception, env)
+
+    error_log = MarcoButterflyNet::ErrorLog.last
+    assert_not_nil error_log
+    assert_equal "StandardError", error_log.exception_class
+    assert_equal "Test error", error_log.message
+    assert_includes error_log.backtrace, "line1"
+  end
+
+  test "persist_exception handles database errors gracefully" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    
+    exception = StandardError.new("Test error")
+    env = {}
+
+    # Stub find_or_create_with_occurrence to raise error
+    MarcoButterflyNet::ErrorLog.stub :find_or_create_with_occurrence, ->(*args) { raise StandardError, "DB error" } do
+      # Should not raise, just log
+      assert_nothing_raised do
+        middleware.send(:persist_exception, exception, env)
+      end
+    end
+  end
+
+  test "extract_request_params extracts all relevant data" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    
+    env = {
+      "REQUEST_METHOD" => "POST",
+      "PATH_INFO" => "/api/users",
+      "QUERY_STRING" => "token=abc123&name=john",
+      "rack.input" => StringIO.new("username=john&password=secret")
+    }
+
+    params = middleware.send(:extract_request_params, env)
+
+    assert_equal "/api/users", params[:path]
+    assert_equal "POST", params[:method]
+    assert_includes params[:query_string], "token=[FILTERED]"
+    assert_includes params[:query_string], "name=john"
+  end
+
+  test "sensitive_key? detects sensitive parameters" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    assert middleware.send(:sensitive_key?, "password")
+    assert middleware.send(:sensitive_key?, "user_password")
+    assert middleware.send(:sensitive_key?, "api_key")
+    assert middleware.send(:sensitive_key?, "access_token")
+    assert middleware.send(:sensitive_key?, "credit_card")
+    assert middleware.send(:sensitive_key?, "ssn")
+    
+    assert_not middleware.send(:sensitive_key?, "username")
+    assert_not middleware.send(:sensitive_key?, "email")
+    assert_not middleware.send(:sensitive_key?, "name")
+  end
+
+  test "filters all sensitive parameter types" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    params = {
+      "password" => "secret",
+      "password_confirmation" => "secret",
+      "secret" => "key",
+      "token" => "abc",
+      "api_key" => "xyz",
+      "access_token" => "123",
+      "refresh_token" => "456",
+      "credit_card" => "1234",
+      "card_number" => "5678",
+      "cvv" => "999",
+      "ssn" => "123-45-6789",
+      "social_security" => "987-65-4321"
+    }
+
+    filtered = middleware.send(:filter_params, params)
+
+    params.keys.each do |key|
+      assert_equal "[FILTERED]", filtered[key], "Expected #{key} to be filtered"
+    end
+  end
 end
