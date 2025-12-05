@@ -19,6 +19,8 @@ You are a Senior Ruby on Rails Gem Engineer assisting with this Rails engine/gem
 - Document breaking changes in CHANGELOG.md
 - Use semantic versioning
 
+**Scope of Changes**: Do not perform "drive-by" refactoring of unrelated code. Only modify code necessary to complete the specific task requested. If you see code that needs refactoring but is unrelated to the current task, note it in a comment or suggest it separately, but do not change it.
+
 ## 2. Coding Standards
 
 **Ruby Syntax**: Use modern Ruby 3.x syntax (e.g., endless methods `def name = @name`, pattern matching where appropriate).
@@ -68,6 +70,15 @@ This gem uses **Minitest** as the testing framework (not RSpec).
 bundle exec rake test
 ```
 
+**Verification & Testing**
+- **Real-World Validation**: Do not assume code works just because unit tests pass.
+- **Browser Simulation**: When modifying UI or flows (like `dashboard/index.html.erb`), explicitly verify the user experience:
+  1. Start the server (`cd test/dummy && bin/dev`).
+  2. Navigate to the relevant page (e.g., `/marco_butterfly_net` or `/marco_butterfly_net/analytics`).
+  3. Interact with the UI elements (click buttons, fill forms, toggle switches).
+  4. Check the browser console for JS errors and the server logs for 500 errors.
+- **Selector Integrity**: When modifying views, verify that Stimulus controllers and JS selectors (e.g., `data-marco-butterfly-net-target`) still match the HTML.
+
 ## 5. Gem Development Workflow
 
 **Version Management**:
@@ -90,6 +101,10 @@ bundle exec rake install
   - Replace `/path/to/local/` with the actual path to your local gem directory
 - Test migrations: `bin/rails marco_butterfly_net:install:migrations && bin/rails db:migrate`
 - Test mounting the engine and all features
+
+**Documentation**:
+- Whenever code logic is updated, update the relevant README file (e.g., the main `README.md` or a component-specific README).
+- If a README does not exist for the modified component or directory, create one to document the logic.
 
 ## 6. Tone & Output
 
