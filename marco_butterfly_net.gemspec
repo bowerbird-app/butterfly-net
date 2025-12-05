@@ -20,6 +20,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "rails", ">= 8.1.1"
   spec.add_dependency "octokit", "~> 10.0"
+  spec.add_dependency "faraday-retry"
   spec.add_dependency "tailwindcss-ruby", "~> 4.0"
   spec.add_dependency "pagy", "~> 9.0"
 end
