@@ -188,7 +188,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
 
     # Create deeply nested hash
     params = { "level1" => { "password" => "secret" } }
-    
+
     filtered = middleware.send(:filter_params, params)
     assert_equal "[FILTERED]", filtered["level1"]["password"]
   end
@@ -202,7 +202,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
 
   test "safe_params rescues errors" do
     middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
-    
+
     request = Object.new
     def request.params
       raise StandardError, "params error"
@@ -214,10 +214,10 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
 
   test "persist_exception creates error log" do
     middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
-    
+
     exception = StandardError.new("Test error")
     exception.set_backtrace([ "line1", "line2" ])
-    
+
     env = {
       "REQUEST_METHOD" => "POST",
       "PATH_INFO" => "/api/test",
@@ -239,7 +239,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
 
   test "persist_exception handles database errors gracefully" do
     middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
-    
+
     exception = StandardError.new("Test error")
     env = {}
 
@@ -254,7 +254,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
 
   test "extract_request_params extracts all relevant data" do
     middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
-    
+
     env = {
       "REQUEST_METHOD" => "POST",
       "PATH_INFO" => "/api/users",
@@ -279,7 +279,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
     assert middleware.send(:sensitive_key?, "access_token")
     assert middleware.send(:sensitive_key?, "credit_card")
     assert middleware.send(:sensitive_key?, "ssn")
-    
+
     assert_not middleware.send(:sensitive_key?, "username")
     assert_not middleware.send(:sensitive_key?, "email")
     assert_not middleware.send(:sensitive_key?, "name")

@@ -103,7 +103,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "token",
       repo: "owner/repo"
     )
-    
+
     long_message = "a" * 200
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
@@ -111,7 +111,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     )
 
     title = service.send(:build_issue_title, error_log)
-    
+
     # Title includes "[Error] RuntimeError: " prefix plus truncated message
     assert title.length <= 110  # Allow for prefix
     assert_includes title, "[Error] RuntimeError:"
@@ -122,7 +122,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "token",
       repo: "owner/repo"
     )
-    
+
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "StandardError",
       message: "Test error message",
@@ -130,7 +130,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     )
 
     body = service.send(:build_issue_body, error_log, nil)
-    
+
     assert_includes body, "## Error Details"
     assert_includes body, "StandardError"
     assert_includes body, "Test error message"
@@ -142,7 +142,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "token",
       repo: "owner/repo"
     )
-    
+
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
@@ -159,7 +159,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     )
 
     body = service.send(:build_issue_body, error_log, blame_result)
-    
+
     assert_includes body, "## Git Blame Information"
     assert_includes body, "Test Author"
     assert_includes body, "test@example.com"
@@ -172,7 +172,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "token",
       repo: "owner/repo"
     )
-    
+
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
@@ -181,7 +181,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     )
 
     body = service.send(:build_issue_body, error_log, nil)
-    
+
     assert_includes body, "## Request Details"
     assert_includes body, "/api/users"
     assert_includes body, "POST"
@@ -193,7 +193,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "token",
       repo: "owner/repo"
     )
-    
+
     backtrace_lines = (1..50).map { |i| "line #{i}" }
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
@@ -202,7 +202,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     )
 
     body = service.send(:build_issue_body, error_log, nil)
-    
+
     assert_includes body, "... (20 more lines)"
   end
 
@@ -211,14 +211,14 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "token",
       repo: "owner/repo"
     )
-    
+
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
 
     labels = service.send(:build_labels, error_log, [])
-    
+
     assert_includes labels, "bug"
     assert_includes labels, "error-tracking"
   end
@@ -228,14 +228,14 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "token",
       repo: "owner/repo"
     )
-    
+
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
 
     labels = service.send(:build_labels, error_log, [ "critical", "production" ])
-    
+
     assert_includes labels, "bug"
     assert_includes labels, "error-tracking"
     assert_includes labels, "critical"
@@ -247,14 +247,14 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "token",
       repo: "owner/repo"
     )
-    
+
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
 
     labels = service.send(:build_labels, error_log, [ "bug", "custom" ])
-    
+
     assert_equal 3, labels.length
     assert_equal 1, labels.count("bug")
   end
@@ -264,7 +264,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "test_token",
       repo: "owner/repo"
     )
-    
+
     assert_not_nil service.client
     assert_instance_of Octokit::Client, service.client
   end

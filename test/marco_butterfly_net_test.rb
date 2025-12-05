@@ -27,12 +27,12 @@ class MarcoButterflyNetTest < ActiveSupport::TestCase
 
   test "capture_exception stores exception data" do
     MarcoButterflyNet.clear_captured_exceptions
-    
+
     exception = StandardError.new("Test error")
     env = { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test" }
-    
+
     MarcoButterflyNet.capture_exception(exception, env)
-    
+
     assert_equal 1, MarcoButterflyNet.captured_exceptions.length
     captured = MarcoButterflyNet.captured_exceptions.first
     assert_equal exception, captured[:exception]
@@ -44,10 +44,10 @@ class MarcoButterflyNetTest < ActiveSupport::TestCase
   test "clear_captured_exceptions removes all captured exceptions" do
     exception = StandardError.new("Test error")
     env = { "REQUEST_METHOD" => "GET" }
-    
+
     MarcoButterflyNet.capture_exception(exception, env)
     assert MarcoButterflyNet.captured_exceptions.any?
-    
+
     MarcoButterflyNet.clear_captured_exceptions
     assert_empty MarcoButterflyNet.captured_exceptions
   end
