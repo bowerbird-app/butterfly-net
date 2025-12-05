@@ -28,6 +28,9 @@ jobs:
     - name: Run database migrations
       run: bundle exec rake db:migrate RAILS_ENV=test
       working-directory: test/dummy
-    
+
+    - name: Run RuboCop
+      run: bundle exec rubocop
+
     - name: Run tests
       run: bundle exec rake app:test

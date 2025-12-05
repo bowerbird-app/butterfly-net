@@ -1,4 +1,4 @@
-require_relative 'test_helper'
+require_relative "test_helper"
 
 MarcoButterflyNet::ErrorLog.delete_all
 

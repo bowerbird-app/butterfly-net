@@ -8,7 +8,7 @@ module MarcoButterflyNet
     # GET /marco_butterfly_net/analytics/summary
     def summary
       analytics = Services::Analytics.new
-      
+
       render json: {
         total_open_errors: analytics.total_open_errors,
         total_affected_users_today: analytics.total_affected_users_today,
@@ -23,7 +23,7 @@ module MarcoButterflyNet
     def top_errors
       analytics = Services::Analytics.new
       limit = params[:limit]&.to_i || 10
-      
+
       render json: {
         top_errors: analytics.top_frequent_errors(limit: limit)
       }
@@ -34,7 +34,7 @@ module MarcoButterflyNet
     def time_series
       analytics = Services::Analytics.new
       days = params[:days]&.to_i || 30
-      
+
       render json: {
         affected_users: analytics.affected_users_over_time(days: days),
         occurrences: analytics.error_occurrences_over_time(days: days),
