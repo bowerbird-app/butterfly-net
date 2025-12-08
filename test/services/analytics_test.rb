@@ -213,6 +213,137 @@ module MarcoButterflyNet
 
         assert_equal 3, @analytics.total_occurrences_today
       end
+
+      test "total_affected_users_today counts users by ID and email separately" do
+        today = Time.current.beginning_of_day
+
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+
+        # Some users with IDs
+        error_log.occurrences.create!(user_id: "user1", created_at: today)
+        error_log.occurrences.create!(user_id: "user2", created_at: today)
+
+        # Some users with emails (different from IDs)
+        error_log.occurrences.create!(user_email: "email1@test.com", created_at: today)
+        error_log.occurrences.create!(user_email: "email2@test.com", created_at: today)
+
+        # Duplicate IDs and emails should be counted once
+        error_log.occurrences.create!(user_id: "user1", created_at: today)
+        error_log.occurrences.create!(user_email: "email1@test.com", created_at: today)
+
+        # Total unique identifiers: user1, user2, email1@test.com, email2@test.com = 4
+        assert_equal 4, @analytics.total_affected_users_today
+      end
+
+      test "mean_time_to_resolution handles mix of resolved and unresolved errors" do
+        # Create resolved error from 10 hours ago
+        error1 = ErrorLog.create!(
+          exception_class: "Error1",
+          message: "msg1",
+          status: "resolved",
+          created_at: 10.hours.ago
+        )
+        error1.update!(resolved_at: Time.current)
+
+        # Create unresolved error (should be ignored)
+        ErrorLog.create!(
+          exception_class: "Error2",
+          message: "msg2",
+          status: "open",
+          created_at: 20.hours.ago
+        )
+
+        # Only resolved error should be counted
+        assert_in_delta 10.0, @analytics.mean_time_to_resolution, 0.1
+      end
+
+      test "top_frequent_errors returns empty array when no errors exist" do
+        top_errors = @analytics.top_frequent_errors(limit: 10)
+
+        assert_equal [], top_errors
+      end
+
+      test "top_frequent_errors includes errors with zero occurrences" do
+        # Create error with no occurrences
+        error_without_occurrences = ErrorLog.create!(exception_class: "NoOccurrenceError", message: "msg")
+
+        # Create error with occurrences
+        error_with_occurrences = ErrorLog.create!(exception_class: "HasOccurrenceError", message: "msg")
+        error_with_occurrences.occurrences.create!
+
+        top_errors = @analytics.top_frequent_errors(limit: 10)
+
+        # Only errors with occurrences are included (due to inner join)
+        assert_equal 1, top_errors.length
+        assert_equal "HasOccurrenceError", top_errors[0][:exception_class]
+        assert_equal 1, top_errors[0][:occurrence_count]
+      end
+
+      test "affected_users_over_time handles dates with no data" do
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+
+        # Create occurrence only on one specific day
+        3.days.ago.to_date.tap do |date|
+          error_log.occurrences.create!(user_id: "user1", created_at: date.to_time)
+        end
+
+        data = @analytics.affected_users_over_time(days: 5)
+
+        # Should have 5 days of data
+        assert_equal 5, data.length
+
+        # Days without data should have count 0
+        zero_count_days = data.select { |d| d[:count] == 0 }
+        assert_equal 4, zero_count_days.length
+
+        # Day with data should have count 1
+        data_day = data.find { |d| d[:date] == 3.days.ago.to_date.to_s }
+        assert_equal 1, data_day[:count]
+      end
+
+      test "error_occurrences_over_time handles multiple occurrences on same day" do
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+
+        # Create multiple occurrences on the same day
+        today = Date.current
+        5.times { error_log.occurrences.create!(created_at: today.to_time) }
+
+        data = @analytics.error_occurrences_over_time(days: 1)
+
+        today_data = data.find { |d| d[:date] == today.to_s }
+        assert_equal 5, today_data[:count]
+      end
+
+      test "new_errors_over_time counts each error once even with multiple occurrences" do
+        # Create error on a specific day
+        3.days.ago.to_date.tap do |date|
+          error = ErrorLog.create!(
+            exception_class: "TestError",
+            message: "msg",
+            created_at: date.to_time
+          )
+          # Add multiple occurrences
+          3.times { error.occurrences.create!(created_at: date.to_time) }
+        end
+
+        data = @analytics.new_errors_over_time(days: 5)
+
+        three_days_ago_data = data.find { |d| d[:date] == 3.days.ago.to_date.to_s }
+        # Should count the error only once, not 3 times
+        assert_equal 1, three_days_ago_data[:count]
+      end
+
+      test "error_status_breakdown returns zero for statuses with no errors" do
+        # Create only open errors
+        ErrorLog.create!(exception_class: "Error1", message: "msg1", status: "open")
+
+        breakdown = @analytics.error_status_breakdown
+
+        assert_equal 1, breakdown["open"]
+        assert_equal 0, breakdown["in_progress"]
+        assert_equal 0, breakdown["resolved"]
+        assert_equal 0, breakdown["dismissed"]
+      end
     end
   end
 end

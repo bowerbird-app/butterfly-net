@@ -243,12 +243,20 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
     exception = StandardError.new("Test error")
     env = {}
 
-    # Stub find_or_create_with_occurrence to raise error
-    MarcoButterflyNet::ErrorLog.stub :find_or_create_with_occurrence, ->(*args) { raise StandardError, "DB error" } do
+    # Mock the ErrorLog class method to raise error
+    original_method = MarcoButterflyNet::ErrorLog.method(:find_or_create_with_occurrence)
+    MarcoButterflyNet::ErrorLog.define_singleton_method(:find_or_create_with_occurrence) do |*args|
+      raise StandardError, "DB error"
+    end
+
+    begin
       # Should not raise, just log
       assert_nothing_raised do
         middleware.send(:persist_exception, exception, env)
       end
+    ensure
+      # Restore original method
+      MarcoButterflyNet::ErrorLog.define_singleton_method(:find_or_create_with_occurrence, original_method)
     end
   end
 

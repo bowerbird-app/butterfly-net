@@ -268,4 +268,105 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_not_nil service.client
     assert_instance_of Octokit::Client, service.client
   end
+
+  test "build_issue_title handles nil message" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: nil
+    )
+
+    title = service.send(:build_issue_title, error_log)
+
+    assert_includes title, "[Error] RuntimeError"
+  end
+
+  test "build_issue_body handles empty backtrace" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: ""
+    )
+
+    body = service.send(:build_issue_body, error_log, nil)
+
+    assert_includes body, "## Error Details"
+    assert_includes body, "RuntimeError"
+  end
+
+  test "build_issue_body handles nil request_params" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      request_params: nil
+    )
+
+    body = service.send(:build_issue_body, error_log, nil)
+
+    assert_includes body, "## Error Details"
+  end
+
+  test "configured? returns true only when all required fields present" do
+    # All present
+    service1 = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+    assert service1.configured?
+
+    # Missing token
+    service2 = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "",
+      repo: "owner/repo"
+    )
+    assert_not service2.configured?
+
+    # Missing repo
+    service3 = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: ""
+    )
+    assert_not service3.configured?
+  end
+
+  test "repo returns properly formatted string" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    assert_equal "owner/repo", service.repo
+  end
+
+  test "build_labels handles empty additional_labels" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    labels = service.send(:build_labels, error_log, [])
+
+    assert_includes labels, "bug"
+    assert_includes labels, "error-tracking"
+    assert_equal 2, labels.length
+  end
 end
