@@ -291,7 +291,7 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
     service = MarcoButterflyNet::Services::GitBlame.new(repo_path: @repo_path)
 
     # Mock Dir.chdir to raise an error
-    Dir.stub :chdir, ->(*args) { raise StandardError, "Directory error" } do
+    Dir.stub :chdir, ->(*args, &block) { raise StandardError, "Directory error" } do
       result = service.send(:run_git_blame, "Gemfile", 1)
       assert_nil result
     end

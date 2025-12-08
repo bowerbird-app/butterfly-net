@@ -382,9 +382,9 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       message: "Test error"
     )
 
-    # Mock the client to raise 401 error
-    mock_client = Minitest::Mock.new
-    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+    # Create a mock client that raises when create_issue is called
+    mock_client = Object.new
+    def mock_client.create_issue(*args)
       raise Octokit::Unauthorized, "401 - Bad credentials"
     end
 
@@ -397,8 +397,6 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes result.error_message, "401"
     assert_nil result.issue_number
     assert_nil result.issue_url
-
-    mock_client.verify
   end
 
   test "create_issue_for_error handles 404 Not Found error" do
@@ -412,9 +410,9 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       message: "Test error"
     )
 
-    # Mock the client to raise 404 error
-    mock_client = Minitest::Mock.new
-    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+    # Create a mock client that raises when create_issue is called
+    mock_client = Object.new
+    def mock_client.create_issue(*args)
       raise Octokit::NotFound, "404 - Not Found"
     end
 
@@ -427,8 +425,6 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes result.error_message, "404"
     assert_nil result.issue_number
     assert_nil result.issue_url
-
-    mock_client.verify
   end
 
   test "create_issue_for_error handles rate limit error" do
@@ -442,9 +438,9 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       message: "Test error"
     )
 
-    # Mock the client to raise rate limit error
-    mock_client = Minitest::Mock.new
-    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+    # Create a mock client that raises when create_issue is called
+    mock_client = Object.new
+    def mock_client.create_issue(*args)
       raise Octokit::TooManyRequests, "403 - API rate limit exceeded"
     end
 
@@ -457,8 +453,6 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes result.error_message, "rate limit"
     assert_nil result.issue_number
     assert_nil result.issue_url
-
-    mock_client.verify
   end
 
   test "create_issue_for_error handles forbidden error" do
@@ -472,9 +466,9 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       message: "Test error"
     )
 
-    # Mock the client to raise forbidden error
-    mock_client = Minitest::Mock.new
-    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+    # Create a mock client that raises when create_issue is called
+    mock_client = Object.new
+    def mock_client.create_issue(*args)
       raise Octokit::Forbidden, "403 - Forbidden"
     end
 
@@ -487,8 +481,6 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes result.error_message, "Forbidden"
     assert_nil result.issue_number
     assert_nil result.issue_url
-
-    mock_client.verify
   end
 
   test "create_issue_for_error handles network error" do
@@ -502,9 +494,9 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       message: "Test error"
     )
 
-    # Mock the client to raise network error
-    mock_client = Minitest::Mock.new
-    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+    # Create a mock client that raises when create_issue is called
+    mock_client = Object.new
+    def mock_client.create_issue(*args)
       raise StandardError, "Network connection failed"
     end
 
@@ -517,8 +509,6 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes result.error_message, "Network connection failed"
     assert_nil result.issue_number
     assert_nil result.issue_url
-
-    mock_client.verify
   end
 
   test "create_issue_for_error handles generic Octokit error" do
@@ -532,9 +522,9 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       message: "Test error"
     )
 
-    # Mock the client to raise generic Octokit error
-    mock_client = Minitest::Mock.new
-    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+    # Create a mock client that raises when create_issue is called
+    mock_client = Object.new
+    def mock_client.create_issue(*args)
       raise Octokit::Error, "Generic API error"
     end
 
@@ -547,7 +537,5 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes result.error_message, "Generic API error"
     assert_nil result.issue_number
     assert_nil result.issue_url
-
-    mock_client.verify
   end
 end

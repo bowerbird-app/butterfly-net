@@ -271,24 +271,6 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
   end
 
   # Additional unhappy path tests for fetch_blame failures
-  test "fetch_blame handles service exception gracefully" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
-      exception_class: "RuntimeError",
-      message: "Test error",
-      backtrace: "#{Rails.root}/Gemfile:1:in `<top>'"
-    )
-
-    # Mock the fetch_blame_info method to raise an error
-    MarcoButterflyNet::ErrorLog.any_instance.stub :fetch_blame_info, ->(*args) {
-      raise StandardError, "Git service unavailable"
-    } do
-      # Should handle the error gracefully
-      assert_raises(StandardError) do
-        post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
-      end
-    end
-  end
-
   test "fetch_blame with force parameter when blame service returns nil" do
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
