@@ -384,7 +384,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     # Create a mock client that raises when create_issue is called
     mock_client = Object.new
-    def mock_client.create_issue(*args)
+    def mock_client.create_issue(*args, **kwargs)
       raise Octokit::Unauthorized, "401 - Bad credentials"
     end
 
@@ -412,7 +412,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     # Create a mock client that raises when create_issue is called
     mock_client = Object.new
-    def mock_client.create_issue(*args)
+    def mock_client.create_issue(*args, **kwargs)
       raise Octokit::NotFound, "404 - Not Found"
     end
 
@@ -440,7 +440,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     # Create a mock client that raises when create_issue is called
     mock_client = Object.new
-    def mock_client.create_issue(*args)
+    def mock_client.create_issue(*args, **kwargs)
       raise Octokit::TooManyRequests, "403 - API rate limit exceeded"
     end
 
@@ -468,7 +468,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     # Create a mock client that raises when create_issue is called
     mock_client = Object.new
-    def mock_client.create_issue(*args)
+    def mock_client.create_issue(*args, **kwargs)
       raise Octokit::Forbidden, "403 - Forbidden"
     end
 
@@ -496,7 +496,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     # Create a mock client that raises when create_issue is called
     mock_client = Object.new
-    def mock_client.create_issue(*args)
+    def mock_client.create_issue(*args, **kwargs)
       raise StandardError, "Network connection failed"
     end
 
@@ -524,7 +524,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     # Create a mock client that raises when create_issue is called
     mock_client = Object.new
-    def mock_client.create_issue(*args)
+    def mock_client.create_issue(*args, **kwargs)
       raise Octokit::Error, "Generic API error"
     end
 
