@@ -113,4 +113,84 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
     assert_not_nil result.commit_date
     assert_equal "def test; end", result.line_content
   end
+
+  test "default_repo_path returns Rails.root when Rails is defined" do
+    service = MarcoButterflyNet::Services::GitBlame.new
+    # Should use Rails.root by default in test environment
+    assert_equal Rails.root.to_s, service.repo_path
+  end
+
+  test "relative_to_repo returns nil for blank path" do
+    assert_nil @service.send(:relative_to_repo, nil)
+    assert_nil @service.send(:relative_to_repo, "")
+  end
+
+  test "relative_to_repo returns nil for file outside repo" do
+    result = @service.send(:relative_to_repo, "/usr/lib/ruby/test.rb")
+    assert_nil result
+  end
+
+  test "relative_to_repo returns relative path for file in repo" do
+    file_path = File.join(@repo_path, "Gemfile")
+    result = @service.send(:relative_to_repo, file_path)
+    assert_equal "Gemfile", result
+  end
+
+  test "file_in_repo? returns true for existing file" do
+    # Use a file that definitely exists in the test dummy app
+    assert @service.send(:file_in_repo?, "Rakefile")
+  end
+
+  test "file_in_repo? returns false for non-existing file" do
+    assert_not @service.send(:file_in_repo?, "non_existing_file.rb")
+  end
+
+  test "blame_file returns nil for file outside repo" do
+    result = @service.blame_file("/usr/lib/ruby/test.rb", 1)
+    assert_nil result
+  end
+
+  test "blame_file returns nil for non-existing file" do
+    result = @service.blame_file(File.join(@repo_path, "non_existing.rb"), 1)
+    assert_nil result
+  end
+
+  test "parse_porcelain_output parses git blame output correctly" do
+    output = <<~GIT_BLAME
+      abc123def456 1 1 1
+      author Test Author
+      author-mail <test@example.com>
+      author-time 1234567890
+      author-tz +0000
+      committer Test Committer
+      committer-mail <committer@example.com>
+      committer-time 1234567890
+      committer-tz +0000
+      summary Initial commit
+      filename test.rb
+      \tdef test_method
+    GIT_BLAME
+
+    result = @service.send(:parse_porcelain_output, output, "test.rb", 1)
+
+    assert_not_nil result
+    assert_equal "test.rb", result.file
+    assert_equal 1, result.line_number
+    assert_equal "abc123def456", result.commit_sha
+    assert_equal "Test Author", result.author_name
+    assert_equal "test@example.com", result.author_email
+    assert_equal "def test_method", result.line_content
+    assert_instance_of Time, result.commit_date
+  end
+
+  test "parse_porcelain_output returns nil for empty output" do
+    result = @service.send(:parse_porcelain_output, "", "test.rb", 1)
+    assert_nil result
+  end
+
+  test "run_git_blame handles git errors gracefully" do
+    # Try to blame a file that doesn't exist
+    result = @service.send(:run_git_blame, "non_existing_file.rb", 1)
+    assert_nil result
+  end
 end
