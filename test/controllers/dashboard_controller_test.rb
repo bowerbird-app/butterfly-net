@@ -269,4 +269,248 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
   ensure
     MarcoButterflyNet.reset_configuration!
   end
+
+  # Unhappy path: Test fetch_blame with errors
+  test "fetch_blame handles service errors gracefully" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: "invalid/path.rb:1:in `method'"
+    )
+
+    # The service will return nil for invalid paths
+    post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
+
+    assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
+    assert_match /Could not retrieve git blame information/, flash[:alert]
+  end
+
+  test "fetch_blame handles database errors" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: "#{Rails.root}/Gemfile:1:in `block'"
+    )
+
+    # Mock ErrorLog.find to raise an error
+    MarcoButterflyNet::ErrorLog.stub :find, ->(id) { 
+      raise ActiveRecord::RecordNotFound.new("Record not found") 
+    } do
+      post marco_butterfly_net.fetch_blame_dashboard_path(error_log.id)
+      
+      # Rails rescue_from handles this and returns 404
+      assert_response :not_found
+    end
+  end
+
+  # Unhappy path: Test create_issue with errors
+  test "create_issue handles service failure with detailed error message" do
+    MarcoButterflyNet.configure do |config|
+      config.github_access_token = "token"
+      config.github_repo_owner = "owner"
+      config.github_repo_name = "repo"
+    end
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock the GitHubIssueCreator service
+    mock_service = Minitest::Mock.new
+    result = MarcoButterflyNet::Services::GitHubIssueCreator::IssueResult.new(
+      success: false,
+      error_message: "Unexpected network error"
+    )
+    # Method is called with (error_log, blame_result:, additional_labels:)
+    # But Mock.expect only counts positional args, so we need to use a block
+    mock_service.expect(:create_issue_for_error, result) do |*args, **kwargs|
+      args.first == error_log
+    end
+
+    MarcoButterflyNet::Services::GitHubIssueCreator.stub :new, mock_service do
+      post marco_butterfly_net.create_issue_dashboard_path(error_log)
+    end
+
+    assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
+    assert_match /Unexpected network error/, flash[:alert]
+
+    mock_service.verify
+  ensure
+    MarcoButterflyNet.reset_configuration!
+  end
+
+  test "create_issue handles rate limit errors" do
+    MarcoButterflyNet.configure do |config|
+      config.github_access_token = "token"
+      config.github_repo_owner = "owner"
+      config.github_repo_name = "repo"
+    end
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock the GitHubIssueCreator service
+    mock_service = Minitest::Mock.new
+    result = MarcoButterflyNet::Services::GitHubIssueCreator::IssueResult.new(
+      success: false,
+      error_message: "API rate limit exceeded. Please try again later."
+    )
+    mock_service.expect(:create_issue_for_error, result) do |*args, **kwargs|
+      args.first == error_log
+    end
+
+    MarcoButterflyNet::Services::GitHubIssueCreator.stub :new, mock_service do
+      post marco_butterfly_net.create_issue_dashboard_path(error_log)
+    end
+
+    assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
+    assert_match /API rate limit exceeded/, flash[:alert]
+
+    mock_service.verify
+  ensure
+    MarcoButterflyNet.reset_configuration!
+  end
+
+  # Edge cases: Test JSON response with pagination
+  test "index JSON handles empty first page" do
+    # No errors created
+
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    assert_equal 0, json_response["error_logs"].length
+    assert_equal 1, json_response["pagy"]["page"]
+    assert_equal 0, json_response["pagy"]["count"]
+    assert_equal 1, json_response["pagy"]["pages"]
+  end
+
+  test "index JSON handles pagination with exact page size" do
+    # Create exactly 25 errors (one page)
+    25.times do |i|
+      travel_to(i.seconds.from_now) do
+        MarcoButterflyNet::ErrorLog.create!(
+          exception_class: "Error#{i}",
+          message: "Message #{i}"
+        )
+      end
+    end
+
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    assert_equal 25, json_response["error_logs"].length
+    assert_equal 1, json_response["pagy"]["page"]
+    assert_equal 25, json_response["pagy"]["count"]
+    assert_equal 1, json_response["pagy"]["pages"]
+    assert_nil json_response["pagy"]["next"]
+  end
+
+  test "index JSON handles last page with fewer items" do
+    # Create 27 errors (2 pages: 25 + 2)
+    27.times do |i|
+      travel_to(i.seconds.from_now) do
+        MarcoButterflyNet::ErrorLog.create!(
+          exception_class: "Error#{i}",
+          message: "Message #{i}"
+        )
+      end
+    end
+
+    # Get page 2
+    get marco_butterfly_net.dashboard_index_path(page: 2), headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    assert_equal 2, json_response["error_logs"].length
+    assert_equal 2, json_response["pagy"]["page"]
+    assert_equal 27, json_response["pagy"]["count"]
+    assert_equal 2, json_response["pagy"]["pages"]
+    assert_nil json_response["pagy"]["next"]
+    assert_equal 1, json_response["pagy"]["prev"]
+  end
+
+  test "index JSON includes occurrence count" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "TestError",
+      message: "Test message"
+    )
+    3.times { error_log.occurrences.create! }
+
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    error_data = json_response["error_logs"].first
+    assert_equal 3, error_data["occurrence_count"]
+  end
+
+  test "index JSON includes GitHub issue information" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "TestError",
+      message: "Test message",
+      github_issue_number: 123,
+      github_issue_url: "https://github.com/owner/repo/issues/123"
+    )
+
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    error_data = json_response["error_logs"].first
+    assert_equal 123, error_data["github_issue_number"]
+    assert_equal "https://github.com/owner/repo/issues/123", error_data["github_issue_url"]
+    assert_equal true, error_data["has_github_issue"]
+  end
+
+  test "index JSON calculates affected counts correctly with mixed user identifiers" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "TestError",
+      message: "Test message"
+    )
+    error_log.occurrences.create!(user_id: "user1")
+    error_log.occurrences.create!(user_id: "user2")
+    error_log.occurrences.create!(user_email: "user3@example.com")
+    error_log.occurrences.create!(user_email: "user4@example.com")
+
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    error_data = json_response["error_logs"].first
+    # Should take max of user_ids (2) and user_emails (2)
+    assert_equal 2, error_data["affected_count"]
+  end
+
+  test "show handles error not found" do
+    get marco_butterfly_net.dashboard_path(id: 99999)
+    
+    # Rails returns 404 for record not found in controllers by default
+    assert_response :not_found
+  end
+
+  test "fetch_blame requires valid error_log id" do
+    post marco_butterfly_net.fetch_blame_dashboard_path(id: 99999)
+    
+    # Rails returns 404 for record not found in controllers by default
+    assert_response :not_found
+  end
+
+  test "create_issue requires valid error_log id" do
+    post marco_butterfly_net.create_issue_dashboard_path(id: 99999)
+    
+    # Rails returns 404 for record not found in controllers by default
+    assert_response :not_found
+  end
+
+  test "analytics renders successfully" do
+    get marco_butterfly_net.analytics_path
+
+    assert_response :success
+    assert_select "h1", text: /Analytics/
+  end
 end

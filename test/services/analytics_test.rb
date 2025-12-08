@@ -344,6 +344,101 @@ module MarcoButterflyNet
         assert_equal 0, breakdown["resolved"]
         assert_equal 0, breakdown["dismissed"]
       end
+
+      # Unhappy path: Empty database scenarios
+      test "total_open_errors returns 0 when database is empty" do
+        assert_equal 0, @analytics.total_open_errors
+      end
+
+      test "total_affected_users_today returns 0 when database is empty" do
+        assert_equal 0, @analytics.total_affected_users_today
+      end
+
+      test "mean_time_to_resolution returns 0.0 when database is empty" do
+        assert_equal 0.0, @analytics.mean_time_to_resolution
+      end
+
+      test "error_status_breakdown returns zeros for all statuses when database is empty" do
+        breakdown = @analytics.error_status_breakdown
+
+        ErrorLog::STATUSES.each do |status|
+          assert_equal 0, breakdown[status], "Expected status '#{status}' to have count 0"
+        end
+      end
+
+      test "top_frequent_errors returns empty array when database is empty" do
+        top_errors = @analytics.top_frequent_errors(limit: 10)
+
+        assert_equal [], top_errors
+      end
+
+      test "affected_users_over_time returns all zeros when database is empty" do
+        data = @analytics.affected_users_over_time(days: 7)
+
+        assert_equal 7, data.length
+        data.each do |day_data|
+          assert_equal 0, day_data[:count], "Expected count 0 for #{day_data[:date]}"
+        end
+      end
+
+      test "error_occurrences_over_time returns all zeros when database is empty" do
+        data = @analytics.error_occurrences_over_time(days: 7)
+
+        assert_equal 7, data.length
+        data.each do |day_data|
+          assert_equal 0, day_data[:count], "Expected count 0 for #{day_data[:date]}"
+        end
+      end
+
+      test "new_errors_over_time returns all zeros when database is empty" do
+        data = @analytics.new_errors_over_time(days: 7)
+
+        assert_equal 7, data.length
+        data.each do |day_data|
+          assert_equal 0, day_data[:count], "Expected count 0 for #{day_data[:date]}"
+        end
+      end
+
+      test "total_occurrences_today returns 0 when database is empty" do
+        assert_equal 0, @analytics.total_occurrences_today
+      end
+
+      # Unhappy path: Test mean_time_to_resolution with resolved errors but no resolved_at
+      test "mean_time_to_resolution excludes resolved errors without resolved_at timestamp" do
+        # Create resolved error with resolved_at (valid)
+        error1 = ErrorLog.create!(
+          exception_class: "Error1",
+          message: "msg1",
+          status: "resolved",
+          created_at: 10.hours.ago
+        )
+        error1.update!(resolved_at: Time.current)
+
+        # Create resolved error without resolved_at (should be excluded)
+        ErrorLog.create!(
+          exception_class: "Error2",
+          message: "msg2",
+          status: "resolved",
+          created_at: 20.hours.ago,
+          resolved_at: nil
+        )
+
+        # Should only count the error with resolved_at
+        assert_in_delta 10.0, @analytics.mean_time_to_resolution, 0.1
+      end
+
+      test "mean_time_to_resolution returns 0.0 when only resolved errors without resolved_at exist" do
+        # Create resolved error without resolved_at
+        ErrorLog.create!(
+          exception_class: "Error1",
+          message: "msg1",
+          status: "resolved",
+          created_at: 10.hours.ago,
+          resolved_at: nil
+        )
+
+        assert_equal 0.0, @analytics.mean_time_to_resolution
+      end
     end
   end
 end

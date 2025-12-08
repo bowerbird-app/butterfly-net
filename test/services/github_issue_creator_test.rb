@@ -369,4 +369,242 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes labels, "error-tracking"
     assert_equal 2, labels.length
   end
+
+  # Happy path: Test create_issue_for_error with mocked Octokit
+  test "create_issue_for_error creates issue with correct arguments" do
+    MarcoButterflyNet.configure do |config|
+      config.github_access_token = "test_token"
+      config.github_repo_owner = "test_owner"
+      config.github_repo_name = "test_repo"
+    end
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error message",
+      backtrace: "line1\nline2"
+    )
+
+    blame_result = MarcoButterflyNet::Services::GitBlame::BlameResult.new(
+      file: "app/models/user.rb",
+      line_number: 42,
+      commit_sha: "abc123",
+      author_name: "Test Author",
+      author_email: "test@example.com",
+      commit_date: Time.now.utc,
+      line_content: "raise RuntimeError"
+    )
+
+    # Mock Octokit client
+    mock_client = Minitest::Mock.new
+    mock_issue = OpenStruct.new(number: 456, html_url: "https://github.com/test_owner/test_repo/issues/456")
+    
+    # Expect create_issue to be called with specific arguments
+    mock_client.expect(:create_issue, mock_issue) do |repo, title, body, options|
+      assert_equal "test_owner/test_repo", repo
+      assert_includes title, "[Error] RuntimeError"
+      assert_includes title, "Test error message"
+      assert_includes body, "RuntimeError"
+      assert_includes body, "Test error message"
+      assert_includes body, "Test Author"
+      assert_includes options[:labels], "bug"
+      assert_includes options[:labels], "error-tracking"
+      true
+    end
+
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "test_token",
+      repo: "test_owner/test_repo"
+    )
+    
+    # Replace the client with our mock
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log, blame_result: blame_result, additional_labels: [])
+
+    assert result.success
+    assert_equal 456, result.issue_number
+    assert_equal "https://github.com/test_owner/test_repo/issues/456", result.issue_url
+    assert_nil result.error_message
+
+    mock_client.verify
+  ensure
+    MarcoButterflyNet.reset_configuration!
+  end
+
+  test "create_issue_for_error includes additional labels" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    mock_client = Minitest::Mock.new
+    mock_issue = OpenStruct.new(number: 789, html_url: "https://github.com/owner/repo/issues/789")
+    
+    mock_client.expect(:create_issue, mock_issue) do |_repo, _title, _body, options|
+      assert_includes options[:labels], "bug"
+      assert_includes options[:labels], "error-tracking"
+      assert_includes options[:labels], "critical"
+      assert_includes options[:labels], "production"
+      true
+    end
+
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log, additional_labels: [ "critical", "production" ])
+
+    assert result.success
+    mock_client.verify
+  end
+
+  # Unhappy path: Test Octokit errors
+  test "create_issue_for_error handles Octokit::Unauthorized error" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |_repo, _title, _body, _options|
+      raise Octokit::Unauthorized.new
+    end
+
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "invalid_token",
+      repo: "owner/repo"
+    )
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_nil result.issue_number
+    assert_nil result.issue_url
+
+    mock_client.verify
+  end
+
+  test "create_issue_for_error handles Octokit::NotFound error" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |_repo, _title, _body, _options|
+      raise Octokit::NotFound.new
+    end
+
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "nonexistent/repo"
+    )
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_nil result.issue_number
+    assert_nil result.issue_url
+
+    mock_client.verify
+  end
+
+  test "create_issue_for_error handles generic Octokit::Error" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |_repo, _title, _body, _options|
+      raise Octokit::Error.new(message: "Rate limit exceeded")
+    end
+
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    
+    mock_client.verify
+  end
+
+  test "create_issue_for_error handles unexpected StandardError" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |_repo, _title, _body, _options|
+      raise StandardError.new("Unexpected error")
+    end
+
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "Unexpected error"
+    
+    mock_client.verify
+  end
+
+  test "create_issue_for_error builds correct title and body" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "NoMethodError",
+      message: "undefined method `foo' for nil:NilClass",
+      backtrace: "app/controllers/users_controller.rb:42:in `show'\napp/views/users/show.html.erb:10:in `block'"
+    )
+
+    mock_client = Minitest::Mock.new
+    mock_issue = OpenStruct.new(number: 999, html_url: "https://github.com/owner/repo/issues/999")
+    
+    captured_title = nil
+    captured_body = nil
+    
+    mock_client.expect(:create_issue, mock_issue) do |_repo, title, body, _options|
+      captured_title = title
+      captured_body = body
+      true
+    end
+
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert result.success
+    
+    # Verify title format
+    assert_includes captured_title, "[Error] NoMethodError"
+    assert_includes captured_title, "undefined method `foo'"
+    
+    # Verify body content
+    assert_includes captured_body, "## Error Details"
+    assert_includes captured_body, "NoMethodError"
+    assert_includes captured_body, "undefined method `foo' for nil:NilClass"
+    assert_includes captured_body, "## Stack Trace"
+    assert_includes captured_body, "app/controllers/users_controller.rb:42"
+    
+    mock_client.verify
+  end
 end
