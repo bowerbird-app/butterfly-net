@@ -179,9 +179,9 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
     # Mock the Octokit client to avoid actual API calls
     mock_client = Minitest::Mock.new
     mock_issue = OpenStruct.new(number: 123, html_url: "https://github.com/test_owner/test_repo/issues/123")
-    mock_client.expect(:create_issue, mock_issue, [String, String, String, Hash])
+    mock_client.expect(:create_issue, mock_issue, [ String, String, String, Hash ])
 
-    MarcoButterflyNet::Services::GitHubIssueCreator.stub :new, -> { 
+    MarcoButterflyNet::Services::GitHubIssueCreator.stub :new, -> {
       creator = Object.new
       def creator.configured?; true; end
       def creator.repo; "test_owner/test_repo"; end
