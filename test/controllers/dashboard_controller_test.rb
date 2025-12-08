@@ -322,10 +322,11 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
       success: false,
       error_message: "Unexpected network error"
     )
-    # Method is called with (error_log, blame_result:, additional_labels:)
-    # But Mock.expect only counts positional args, so we need to use a block
-    mock_service.expect(:create_issue_for_error, result) do |*args, **kwargs|
-      args.first == error_log
+    # Validate all arguments including keyword arguments
+    mock_service.expect(:create_issue_for_error, result) do |error, **kwargs|
+      error == error_log &&
+        kwargs.key?(:blame_result) &&
+        kwargs.key?(:additional_labels)
     end
 
     MarcoButterflyNet::Services::GitHubIssueCreator.stub :new, mock_service do
@@ -358,8 +359,11 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
       success: false,
       error_message: "API rate limit exceeded. Please try again later."
     )
-    mock_service.expect(:create_issue_for_error, result) do |*args, **kwargs|
-      args.first == error_log
+    # Validate all arguments including keyword arguments
+    mock_service.expect(:create_issue_for_error, result) do |error, **kwargs|
+      error == error_log &&
+        kwargs.key?(:blame_result) &&
+        kwargs.key?(:additional_labels)
     end
 
     MarcoButterflyNet::Services::GitHubIssueCreator.stub :new, mock_service do

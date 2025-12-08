@@ -394,6 +394,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       line_content: "raise RuntimeError"
     )
 
+    # Create service with proper dependency injection for testing
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "test_token",
+      repo: "test_owner/test_repo"
+    )
+
     # Mock Octokit client
     mock_client = Minitest::Mock.new
     mock_issue = OpenStruct.new(number: 456, html_url: "https://github.com/test_owner/test_repo/issues/456")
@@ -411,12 +417,8 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       true
     end
 
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
-      access_token: "test_token",
-      repo: "test_owner/test_repo"
-    )
-
-    # Replace the client with our mock
+    # Inject mock client for testing
+    original_client = service.instance_variable_get(:@client)
     service.instance_variable_set(:@client, mock_client)
 
     result = service.create_issue_for_error(error_log, blame_result: blame_result, additional_labels: [])
@@ -428,6 +430,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     mock_client.verify
   ensure
+    service.instance_variable_set(:@client, original_client) if service && original_client
     MarcoButterflyNet.reset_configuration!
   end
 

@@ -361,7 +361,7 @@ module MarcoButterflyNet
       test "error_status_breakdown returns zeros for all statuses when database is empty" do
         breakdown = @analytics.error_status_breakdown
 
-        ErrorLog::STATUSES.each do |status|
+        MarcoButterflyNet::ErrorLog::STATUSES.each do |status|
           assert_equal 0, breakdown[status], "Expected status '#{status}' to have count 0"
         end
       end
