@@ -397,7 +397,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     # Mock Octokit client
     mock_client = Minitest::Mock.new
     mock_issue = OpenStruct.new(number: 456, html_url: "https://github.com/test_owner/test_repo/issues/456")
-    
+
     # Expect create_issue to be called with specific arguments
     mock_client.expect(:create_issue, mock_issue) do |repo, title, body, options|
       assert_equal "test_owner/test_repo", repo
@@ -415,7 +415,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
       access_token: "test_token",
       repo: "test_owner/test_repo"
     )
-    
+
     # Replace the client with our mock
     service.instance_variable_set(:@client, mock_client)
 
@@ -439,7 +439,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     mock_client = Minitest::Mock.new
     mock_issue = OpenStruct.new(number: 789, html_url: "https://github.com/owner/repo/issues/789")
-    
+
     mock_client.expect(:create_issue, mock_issue) do |_repo, _title, _body, options|
       assert_includes options[:labels], "bug"
       assert_includes options[:labels], "error-tracking"
@@ -536,7 +536,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     assert_not result.success
     assert_includes result.error_message, "GitHub API error"
-    
+
     mock_client.verify
   end
 
@@ -561,7 +561,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     assert_not result.success
     assert_includes result.error_message, "Unexpected error"
-    
+
     mock_client.verify
   end
 
@@ -574,10 +574,10 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
     mock_client = Minitest::Mock.new
     mock_issue = OpenStruct.new(number: 999, html_url: "https://github.com/owner/repo/issues/999")
-    
+
     captured_title = nil
     captured_body = nil
-    
+
     mock_client.expect(:create_issue, mock_issue) do |_repo, title, body, _options|
       captured_title = title
       captured_body = body
@@ -593,18 +593,18 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     result = service.create_issue_for_error(error_log)
 
     assert result.success
-    
+
     # Verify title format
     assert_includes captured_title, "[Error] NoMethodError"
     assert_includes captured_title, "undefined method `foo'"
-    
+
     # Verify body content
     assert_includes captured_body, "## Error Details"
     assert_includes captured_body, "NoMethodError"
     assert_includes captured_body, "undefined method `foo' for nil:NilClass"
     assert_includes captured_body, "## Stack Trace"
     assert_includes captured_body, "app/controllers/users_controller.rb:42"
-    
+
     mock_client.verify
   end
 end

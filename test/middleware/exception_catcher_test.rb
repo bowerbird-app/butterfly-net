@@ -326,7 +326,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
     error = StandardError.new("Integration test error")
     app = ->(_env) { raise error }
     middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
-    
+
     env = {
       "REQUEST_METHOD" => "POST",
       "PATH_INFO" => "/api/test",
@@ -388,7 +388,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
 
     # Verify error was captured
     assert_equal 1, MarcoButterflyNet.captured_exceptions.length
-    
+
     # Verify ErrorLog was created
     error_log = MarcoButterflyNet::ErrorLog.last
     assert_not_nil error_log
@@ -422,7 +422,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
 
   test "middleware continues to work even if persistence fails" do
     error_count = 0
-    app = ->(_env) { 
+    app = ->(_env) {
       error_count += 1
       raise StandardError.new("Error #{error_count}")
     }
@@ -573,7 +573,7 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
     error = StandardError.new("Already handled")
     app = ->(_env) { raise error }
     middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
-    
+
     # Mark as already handled
     env = { "marco_butterfly_net.exception_handled" => true }
 

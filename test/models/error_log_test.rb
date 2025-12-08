@@ -675,7 +675,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   # Edge cases for occurrence counting with nil values
   test "occurrence_count excludes deleted occurrences" do
     error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    
+
     occ1 = error_log.record_occurrence
     occ2 = error_log.record_occurrence
     error_log.record_occurrence
@@ -689,7 +689,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
   test "affected_users_count handles nil user_ids correctly" do
     error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    
+
     error_log.record_occurrence(user_id: "user1")
     error_log.record_occurrence(user_id: "user2")
     error_log.record_occurrence(user_id: nil)  # Should not count
@@ -701,24 +701,24 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
   test "occurrences_for_user returns empty for nil user_id" do
     error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    
+
     error_log.record_occurrence(user_id: "user1")
     error_log.record_occurrence(user_id: nil)
 
     occurrences = error_log.occurrences_for_user(nil)
-    
+
     # Should return occurrences with nil user_id
     assert_equal 1, occurrences.count
   end
 
   test "occurrences_for_user_email returns empty for nil email" do
     error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    
+
     error_log.record_occurrence(user_email: "user@test.com")
     error_log.record_occurrence(user_email: nil)
 
     occurrences = error_log.occurrences_for_user_email(nil)
-    
+
     # Should return occurrences with nil user_email
     assert_equal 1, occurrences.count
   end
@@ -726,13 +726,13 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   # Additional tests for specific lines mentioned in problem statement
   test "affecting_user scope works with multiple errors" do
     user_id = SecureRandom.uuid
-    
+
     error1 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1")
     error1.record_occurrence(user_id: user_id)
-    
+
     error2 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
     error2.record_occurrence(user_id: user_id)
-    
+
     error3 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error3")
     error3.record_occurrence(user_id: SecureRandom.uuid)
 
@@ -745,13 +745,13 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
   test "affecting_user_email scope works with multiple errors" do
     email = "user@test.com"
-    
+
     error1 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1")
     error1.record_occurrence(user_email: email)
-    
+
     error2 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
     error2.record_occurrence(user_email: email)
-    
+
     error3 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error3")
     error3.record_occurrence(user_email: "other@test.com")
 

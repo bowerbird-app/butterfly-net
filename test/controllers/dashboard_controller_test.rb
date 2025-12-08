@@ -293,11 +293,11 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
     )
 
     # Mock ErrorLog.find to raise an error
-    MarcoButterflyNet::ErrorLog.stub :find, ->(id) { 
-      raise ActiveRecord::RecordNotFound.new("Record not found") 
+    MarcoButterflyNet::ErrorLog.stub :find, ->(id) {
+      raise ActiveRecord::RecordNotFound.new("Record not found")
     } do
       post marco_butterfly_net.fetch_blame_dashboard_path(error_log.id)
-      
+
       # Rails rescue_from handles this and returns 404
       assert_response :not_found
     end
@@ -488,21 +488,21 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
 
   test "show handles error not found" do
     get marco_butterfly_net.dashboard_path(id: 99999)
-    
+
     # Rails returns 404 for record not found in controllers by default
     assert_response :not_found
   end
 
   test "fetch_blame requires valid error_log id" do
     post marco_butterfly_net.fetch_blame_dashboard_path(id: 99999)
-    
+
     # Rails returns 404 for record not found in controllers by default
     assert_response :not_found
   end
 
   test "create_issue requires valid error_log id" do
     post marco_butterfly_net.create_issue_dashboard_path(id: 99999)
-    
+
     # Rails returns 404 for record not found in controllers by default
     assert_response :not_found
   end
