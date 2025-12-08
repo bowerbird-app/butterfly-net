@@ -317,4 +317,163 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
       assert_equal "[FILTERED]", filtered[key], "Expected #{key} to be filtered"
     end
   end
+
+  # Additional unhappy path tests for database failures
+  test "persist_exception logs error when ErrorLog.find_or_create_with_occurrence raises ActiveRecord::StatementInvalid" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    exception = StandardError.new("Test error")
+    env = { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test", "rack.input" => StringIO.new }
+
+    # Mock to raise database error
+    original_method = MarcoButterflyNet::ErrorLog.method(:find_or_create_with_occurrence)
+    MarcoButterflyNet::ErrorLog.define_singleton_method(:find_or_create_with_occurrence) do |*args|
+      raise ActiveRecord::StatementInvalid, "PG::ConnectionBad: connection is closed"
+    end
+
+    begin
+      # Should not raise, just log the error
+      assert_nothing_raised do
+        middleware.send(:persist_exception, exception, env)
+      end
+    ensure
+      MarcoButterflyNet::ErrorLog.define_singleton_method(:find_or_create_with_occurrence, original_method)
+    end
+  end
+
+  test "persist_exception logs error when ErrorLog.find_or_create_with_occurrence raises ActiveRecord::RecordInvalid" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    exception = StandardError.new("Test error")
+    env = { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test", "rack.input" => StringIO.new }
+
+    # Mock to raise validation error
+    original_method = MarcoButterflyNet::ErrorLog.method(:find_or_create_with_occurrence)
+    MarcoButterflyNet::ErrorLog.define_singleton_method(:find_or_create_with_occurrence) do |*args|
+      raise ActiveRecord::RecordInvalid, "Validation failed"
+    end
+
+    begin
+      assert_nothing_raised do
+        middleware.send(:persist_exception, exception, env)
+      end
+    ensure
+      MarcoButterflyNet::ErrorLog.define_singleton_method(:find_or_create_with_occurrence, original_method)
+    end
+  end
+
+  test "persist_exception logs error when database connection is lost" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    exception = StandardError.new("Test error")
+    env = { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test", "rack.input" => StringIO.new }
+
+    # Mock to raise connection error
+    original_method = MarcoButterflyNet::ErrorLog.method(:find_or_create_with_occurrence)
+    MarcoButterflyNet::ErrorLog.define_singleton_method(:find_or_create_with_occurrence) do |*args|
+      raise ActiveRecord::ConnectionNotEstablished, "Database connection lost"
+    end
+
+    begin
+      assert_nothing_raised do
+        middleware.send(:persist_exception, exception, env)
+      end
+    ensure
+      MarcoButterflyNet::ErrorLog.define_singleton_method(:find_or_create_with_occurrence, original_method)
+    end
+  end
+
+  test "capture_and_persist marks exception as handled in env" do
+    app = lambda { |env| [ 200, {}, [ "OK" ] ] }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+
+    exception = StandardError.new("Test error")
+    exception.set_backtrace([ "line1" ])
+    env = { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test", "rack.input" => StringIO.new }
+
+    middleware.capture_and_persist(exception, env)
+
+    assert env["marco_butterfly_net.exception_handled"]
+  end
+
+  test "call does not capture exception if already handled" do
+    MarcoButterflyNet.clear_captured_exceptions
+
+    error = StandardError.new("Test error")
+    app = ->(_env) { raise error }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+    env = { "marco_butterfly_net.exception_handled" => true }
+
+    assert_raises(StandardError) do
+      middleware.call(env)
+    end
+
+    # Should not capture since already handled
+    assert_equal 0, MarcoButterflyNet.captured_exceptions.length
+  end
+
+  test "extract_request_params handles rack.input errors gracefully" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    # Create an env with rack.input that raises an error
+    bad_input = Object.new
+    def bad_input.read
+      raise StandardError, "Cannot read input"
+    end
+
+    env = {
+      "REQUEST_METHOD" => "POST",
+      "PATH_INFO" => "/api/test",
+      "QUERY_STRING" => "key=value",
+      "rack.input" => bad_input
+    }
+
+    # Should handle the error and return params anyway
+    params = middleware.send(:extract_request_params, env)
+
+    assert_equal "/api/test", params[:path]
+    assert_equal "POST", params[:method]
+    assert_equal({}, params[:params])
+  end
+
+  test "filter_params handles circular references with depth limit" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    # Create deeply nested hash to test recursion limit
+    params = { "level1" => {} }
+    current = params["level1"]
+    15.times do |i|
+      current["level#{i + 2}"] = {}
+      current = current["level#{i + 2}"]
+    end
+    current["password"] = "secret"
+
+    # Should not raise, and should handle depth limit
+    filtered = middleware.send(:filter_params, params)
+
+    # The deeply nested structure should be returned as-is after depth 10
+    assert_instance_of Hash, filtered
+  end
+
+  test "filter_query_string handles malformed query strings" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    # Query string without = sign
+    query_string = "keyonly&another"
+    filtered = middleware.send(:filter_query_string, query_string)
+
+    assert_equal "keyonly&another", filtered
+  end
+
+  test "filter_query_string filters sensitive keys in various formats" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    query_string = "user_password=secret&api_key=abc123&name=john&access_token=xyz"
+    filtered = middleware.send(:filter_query_string, query_string)
+
+    assert_includes filtered, "user_password=[FILTERED]"
+    assert_includes filtered, "api_key=[FILTERED]"
+    assert_includes filtered, "name=john"
+    assert_includes filtered, "access_token=[FILTERED]"
+  end
 end

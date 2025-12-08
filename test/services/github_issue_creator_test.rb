@@ -369,4 +369,185 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes labels, "error-tracking"
     assert_equal 2, labels.length
   end
+
+  # Unhappy path tests for Octokit API errors
+  test "create_issue_for_error handles 401 Unauthorized error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "invalid_token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock the client to raise 401 error
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+      raise Octokit::Unauthorized, "401 - Bad credentials"
+    end
+
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "401"
+    assert_nil result.issue_number
+    assert_nil result.issue_url
+
+    mock_client.verify
+  end
+
+  test "create_issue_for_error handles 404 Not Found error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "valid_token",
+      repo: "nonexistent/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock the client to raise 404 error
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+      raise Octokit::NotFound, "404 - Not Found"
+    end
+
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "404"
+    assert_nil result.issue_number
+    assert_nil result.issue_url
+
+    mock_client.verify
+  end
+
+  test "create_issue_for_error handles rate limit error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "valid_token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock the client to raise rate limit error
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+      raise Octokit::TooManyRequests, "403 - API rate limit exceeded"
+    end
+
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "rate limit"
+    assert_nil result.issue_number
+    assert_nil result.issue_url
+
+    mock_client.verify
+  end
+
+  test "create_issue_for_error handles forbidden error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "valid_token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock the client to raise forbidden error
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+      raise Octokit::Forbidden, "403 - Forbidden"
+    end
+
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "Forbidden"
+    assert_nil result.issue_number
+    assert_nil result.issue_url
+
+    mock_client.verify
+  end
+
+  test "create_issue_for_error handles network error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "valid_token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock the client to raise network error
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+      raise StandardError, "Network connection failed"
+    end
+
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "Unexpected error"
+    assert_includes result.error_message, "Network connection failed"
+    assert_nil result.issue_number
+    assert_nil result.issue_url
+
+    mock_client.verify
+  end
+
+  test "create_issue_for_error handles generic Octokit error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "valid_token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock the client to raise generic Octokit error
+    mock_client = Minitest::Mock.new
+    mock_client.expect(:create_issue, nil) do |repo, title, body, options|
+      raise Octokit::Error, "Generic API error"
+    end
+
+    service.instance_variable_set(:@client, mock_client)
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "Generic API error"
+    assert_nil result.issue_number
+    assert_nil result.issue_url
+
+    mock_client.verify
+  end
 end

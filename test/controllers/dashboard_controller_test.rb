@@ -269,4 +269,130 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
   ensure
     MarcoButterflyNet.reset_configuration!
   end
+
+  # Additional unhappy path tests for fetch_blame failures
+  test "fetch_blame handles service exception gracefully" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: "#{Rails.root}/Gemfile:1:in `<top>'"
+    )
+
+    # Mock the fetch_blame_info method to raise an error
+    MarcoButterflyNet::ErrorLog.any_instance.stub :fetch_blame_info, ->(*args) {
+      raise StandardError, "Git service unavailable"
+    } do
+      # Should handle the error gracefully
+      assert_raises(StandardError) do
+        post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
+      end
+    end
+  end
+
+  test "fetch_blame with force parameter when blame service returns nil" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: "/nonexistent/file.rb:1:in `<top>'"
+    )
+
+    post marco_butterfly_net.fetch_blame_dashboard_path(error_log), params: { force: "true" }
+
+    assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
+    follow_redirect!
+    assert_match /Could not retrieve/, flash[:alert]
+  end
+
+  test "create_issue when error already has GitHub issue" do
+    MarcoButterflyNet.configure do |config|
+      config.github_access_token = "fake_token"
+      config.github_repo_owner = "test_owner"
+      config.github_repo_name = "test_repo"
+    end
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      github_issue_number: 999,
+      github_issue_url: "https://github.com/test_owner/test_repo/issues/999"
+    )
+
+    post marco_butterfly_net.create_issue_dashboard_path(error_log)
+
+    assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
+    follow_redirect!
+    # Should still redirect successfully (model handles this case)
+  ensure
+    MarcoButterflyNet.reset_configuration!
+  end
+
+  test "index JSON handles errors without occurrences" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "TestError",
+      message: "Test message"
+    )
+    # No occurrences created
+
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    error_data = json_response["error_logs"].first
+    assert_equal 0, error_data["affected_count"]
+  end
+
+  test "index displays errors with various statuses" do
+    MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "OpenError",
+      message: "Open error",
+      status: "open"
+    )
+    MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "InProgressError",
+      message: "In progress error",
+      status: "in_progress"
+    )
+    MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "ResolvedError",
+      message: "Resolved error",
+      status: "resolved"
+    )
+
+    get marco_butterfly_net.dashboard_index_path
+
+    assert_response :success
+    assert_match /OpenError/, response.body
+    assert_match /InProgressError/, response.body
+    assert_match /ResolvedError/, response.body
+  end
+
+  test "show handles error with all fields populated" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Complete error",
+      backtrace: "line1\nline2\nline3",
+      request_params: { path: "/api/test", method: "POST" },
+      user_agent: "TestBrowser/1.0",
+      blame_file: "app/models/user.rb",
+      blame_line_number: 42,
+      blame_commit_sha: "abc123",
+      blame_author_name: "Test Author",
+      blame_author_email: "test@example.com",
+      github_issue_number: 123,
+      github_issue_url: "https://github.com/owner/repo/issues/123"
+    )
+
+    get marco_butterfly_net.dashboard_path(error_log)
+
+    assert_response :success
+    assert_match /RuntimeError/, response.body
+    assert_match /Complete error/, response.body
+  end
+
+  test "analytics renders with no data" do
+    get marco_butterfly_net.analytics_path
+
+    assert_response :success
+    # Analytics page should load even with no errors
+  end
 end

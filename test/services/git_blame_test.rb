@@ -269,4 +269,136 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
     assert_equal "test.rb", result.file
     assert_equal 1, result.line_number
   end
+
+  # Additional unhappy path tests for git command failures
+  test "run_git_blame returns nil when git command exits with error" do
+    service = MarcoButterflyNet::Services::GitBlame.new(repo_path: @repo_path)
+
+    # Try to blame a file that exists but is not tracked by git
+    # Create a temporary untracked file
+    untracked_file = File.join(@repo_path, "untracked_test_file.rb")
+    File.write(untracked_file, "# test content")
+
+    begin
+      result = service.send(:run_git_blame, "untracked_test_file.rb", 1)
+      assert_nil result
+    ensure
+      File.delete(untracked_file) if File.exist?(untracked_file)
+    end
+  end
+
+  test "run_git_blame handles StandardError gracefully" do
+    service = MarcoButterflyNet::Services::GitBlame.new(repo_path: @repo_path)
+
+    # Mock Dir.chdir to raise an error
+    Dir.stub :chdir, ->(*args) { raise StandardError, "Directory error" } do
+      result = service.send(:run_git_blame, "Gemfile", 1)
+      assert_nil result
+    end
+  end
+
+  test "blame_file returns nil when file path is outside repository" do
+    service = MarcoButterflyNet::Services::GitBlame.new(repo_path: @repo_path)
+
+    result = service.blame_file("/tmp/outside_repo.rb", 1)
+    assert_nil result
+  end
+
+  test "blame_file returns nil when file does not exist in repository" do
+    service = MarcoButterflyNet::Services::GitBlame.new(repo_path: @repo_path)
+
+    result = service.blame_file(File.join(@repo_path, "nonexistent_file.rb"), 1)
+    assert_nil result
+  end
+
+  test "parse_porcelain_output handles output with missing author information" do
+    output = <<~GIT_BLAME
+      abc123def456 1 1 1
+      filename test.rb
+      \tdef test_method
+    GIT_BLAME
+
+    result = @service.send(:parse_porcelain_output, output, "test.rb", 1)
+
+    assert_not_nil result
+    assert_equal "test.rb", result.file
+    assert_equal 1, result.line_number
+    assert_equal "abc123def456", result.commit_sha
+    assert_nil result.author_name
+    assert_nil result.author_email
+    assert_equal "def test_method", result.line_content
+  end
+
+  test "parse_porcelain_output handles output with missing line content" do
+    output = <<~GIT_BLAME
+      abc123def456 1 1 1
+      author Test Author
+      author-mail <test@example.com>
+      author-time 1234567890
+      filename test.rb
+    GIT_BLAME
+
+    result = @service.send(:parse_porcelain_output, output, "test.rb", 1)
+
+    assert_not_nil result
+    assert_equal "test.rb", result.file
+    assert_equal 1, result.line_number
+    assert_equal "abc123def456", result.commit_sha
+    assert_equal "Test Author", result.author_name
+    assert_equal "test@example.com", result.author_email
+    assert_nil result.line_content
+  end
+
+  test "blame_from_backtrace explicitly returns nil for empty backtrace array" do
+    result = @service.blame_from_backtrace([])
+    assert_nil result
+  end
+
+  test "blame_from_backtrace returns nil when all files are outside repo" do
+    backtrace_lines = [
+      "/usr/lib/ruby/gems/3.2.0/gems/activesupport-8.1.1/lib/active_support.rb:1:in `block'",
+      "/System/Library/ruby/test.rb:5:in `method'",
+      "/opt/homebrew/lib/ruby/gems/test.rb:10:in `call'"
+    ]
+
+    result = @service.blame_from_backtrace(backtrace_lines)
+    assert_nil result
+  end
+
+  test "blame_from_backtrace returns nil when backtrace has invalid format" do
+    backtrace_lines = [
+      "not a valid backtrace line",
+      "another invalid line",
+      "still invalid"
+    ]
+
+    result = @service.blame_from_backtrace(backtrace_lines)
+    assert_nil result
+  end
+
+  test "blame_line returns nil for backtrace line without line number" do
+    backtrace_line = "/path/to/file.rb:in `block'"
+    result = @service.blame_line(backtrace_line)
+    assert_nil result
+  end
+
+  test "blame_all_from_backtrace handles mix of valid and invalid lines" do
+    test_file = File.join(@repo_path, "Gemfile")
+    backtrace_lines = [
+      "invalid line format",
+      "#{test_file}:1:in `block'",
+      "/usr/lib/ruby/test.rb:5:in `method'",
+      "another invalid",
+      "#{test_file}:5:in `another_block'"
+    ]
+
+    results = @service.blame_all_from_backtrace(backtrace_lines)
+
+    assert_instance_of Array, results
+    # Should only include results for valid app files (may be 0-2 depending on git status)
+    results.each do |result|
+      assert_instance_of MarcoButterflyNet::Services::GitBlame::BlameResult, result
+      assert_equal "Gemfile", result.file
+    end
+  end
 end
