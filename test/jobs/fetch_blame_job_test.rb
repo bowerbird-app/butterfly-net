@@ -116,4 +116,33 @@ class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
       end
     end
   end
+
+  test "handles nil backtrace gracefully" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: nil
+    )
+
+    # Should not raise any errors
+    assert_nothing_raised do
+      MarcoButterflyNet::FetchBlameJob.perform_now(error_log.id)
+    end
+
+    # Verify no blame info was set
+    error_log.reload
+    assert_not error_log.has_blame_info?
+  end
+
+  test "can be enqueued" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: "/app/models/user.rb:42:in `save'"
+    )
+
+    assert_enqueued_with(job: MarcoButterflyNet::FetchBlameJob, args: [ error_log.id ]) do
+      MarcoButterflyNet::FetchBlameJob.perform_later(error_log.id)
+    end
+  end
 end

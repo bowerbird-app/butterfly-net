@@ -120,4 +120,40 @@ class MarcoButterflyNet::ErrorOccurrenceTest < ActiveSupport::TestCase
     assert_not_nil occurrence.created_at
     assert_not_nil occurrence.updated_at
   end
+
+  test "can be created without user_id" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+
+    occurrence = MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log)
+
+    assert occurrence.persisted?
+    assert_nil occurrence.user_id
+  end
+
+  test "can be created without user_email" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+
+    occurrence = MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log)
+
+    assert occurrence.persisted?
+    assert_nil occurrence.user_email
+  end
+
+  test "for_user returns empty when user_id is nil" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_id: "user1")
+
+    user_occurrences = MarcoButterflyNet::ErrorOccurrence.for_user(nil)
+
+    assert_equal 0, user_occurrences.count
+  end
+
+  test "for_user_email returns empty when email is nil" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_email: "user@example.com")
+
+    user_occurrences = MarcoButterflyNet::ErrorOccurrence.for_user_email(nil)
+
+    assert_equal 0, user_occurrences.count
+  end
 end

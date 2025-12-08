@@ -132,4 +132,72 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
     assert_equal 14, json_response["occurrences"].length
     assert_equal 14, json_response["new_errors"].length
   end
+
+  test "summary handles empty database gracefully" do
+    get marco_butterfly_net.analytics_summary_path
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+
+    assert_equal 0, json_response["total_open_errors"]
+    assert_equal 0, json_response["total_affected_users_today"]
+    assert_equal 0.0, json_response["mean_time_to_resolution"]
+    assert_equal 0, json_response["total_occurrences_today"]
+  end
+
+  test "top_errors handles empty database gracefully" do
+    get marco_butterfly_net.analytics_top_errors_path
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+
+    assert_equal [], json_response["top_errors"]
+  end
+
+  test "time_series handles empty database gracefully" do
+    get marco_butterfly_net.analytics_time_series_path(days: 7)
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+
+    # Should return 7 days of zero counts
+    assert_equal 7, json_response["affected_users"].length
+    json_response["affected_users"].each do |item|
+      assert_equal 0, item["count"]
+    end
+  end
+
+  test "top_errors handles invalid limit parameter" do
+    error = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error", message: "msg")
+    error.occurrences.create!
+
+    get marco_butterfly_net.analytics_top_errors_path(limit: "invalid")
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+
+    # Should default to 10 when invalid
+    assert_not_nil json_response["top_errors"]
+  end
+
+  test "time_series handles invalid days parameter" do
+    get marco_butterfly_net.analytics_time_series_path(days: "invalid")
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+
+    # "invalid".to_i returns 0, which is falsy, but &.to_i returns 0 (not nil)
+    # So 0 will be used as-is. The test should verify it returns empty or 0-day data
+    assert_equal 0, json_response["affected_users"].length
+  end
+
+  test "time_series handles zero days parameter" do
+    get marco_butterfly_net.analytics_time_series_path(days: 0)
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+
+    # When days is 0, should return 0 days of data
+    assert_equal 0, json_response["affected_users"].length
+  end
 end

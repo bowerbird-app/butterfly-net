@@ -347,4 +347,206 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
       error_log.update!(message: "Updated message")
     end
   end
+
+  # Tests for GitHub issue tracking
+  test "has_github_issue? returns false when no issue" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+
+    assert_not error_log.has_github_issue?
+  end
+
+  test "has_github_issue? returns true when issue exists" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      github_issue_number: 123,
+      github_issue_url: "https://github.com/owner/repo/issues/123"
+    )
+
+    assert error_log.has_github_issue?
+  end
+
+  test "with_github_issue scope filters errors with issues" do
+    with_issue = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "Error1",
+      github_issue_number: 123
+    )
+    without_issue = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+
+    errors_with_issues = MarcoButterflyNet::ErrorLog.with_github_issue
+
+    assert_equal 1, errors_with_issues.count
+    assert_equal with_issue.id, errors_with_issues.first.id
+  end
+
+  test "without_github_issue scope filters errors without issues" do
+    with_issue = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "Error1",
+      github_issue_number: 123
+    )
+    without_issue = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+
+    errors_without_issues = MarcoButterflyNet::ErrorLog.without_github_issue
+
+    assert_equal 1, errors_without_issues.count
+    assert_equal without_issue.id, errors_without_issues.first.id
+  end
+
+  test "has_blame_info? returns false when no blame info" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+
+    assert_not error_log.has_blame_info?
+  end
+
+  test "has_blame_info? returns true when blame info exists" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      blame_file: "app/models/user.rb",
+      blame_commit_sha: "abc123"
+    )
+
+    assert error_log.has_blame_info?
+  end
+
+  # Tests for resolved_at callback
+  test "changing status to resolved sets resolved_at" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      status: "open"
+    )
+
+    assert_nil error_log.resolved_at
+
+    error_log.update!(status: "resolved")
+
+    assert_not_nil error_log.resolved_at
+    assert_in_delta Time.current.to_i, error_log.resolved_at.to_i, 2
+  end
+
+  test "changing status from resolved clears resolved_at" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      status: "resolved"
+    )
+    error_log.update!(resolved_at: 1.hour.ago)
+
+    error_log.update!(status: "open")
+
+    assert_nil error_log.resolved_at
+  end
+
+  test "updating resolved error without changing status keeps resolved_at" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      status: "resolved"
+    )
+    resolved_time = 1.hour.ago
+    error_log.update!(resolved_at: resolved_time)
+
+    error_log.update!(message: "Updated message")
+
+    assert_equal resolved_time.to_i, error_log.resolved_at.to_i
+  end
+
+  # Tests for affecting_user_email scope
+  test "affecting_user_email scope filters errors by email" do
+    email = "user@example.com"
+    other_email = "other@example.com"
+
+    error1 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1")
+    error1.record_occurrence(user_email: email)
+
+    error2 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+    error2.record_occurrence(user_email: other_email)
+
+    email_errors = MarcoButterflyNet::ErrorLog.affecting_user_email(email)
+
+    assert_equal 1, email_errors.count
+    assert_equal "Error1", email_errors.first.exception_class
+  end
+
+  test "occurrences_for_user_email returns only that email's occurrences" do
+    email = "user@example.com"
+    other_email = "other@example.com"
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log.record_occurrence(user_email: email)
+    error_log.record_occurrence(user_email: email)
+    error_log.record_occurrence(user_email: other_email)
+
+    email_occurrences = error_log.occurrences_for_user_email(email)
+
+    assert_equal 2, email_occurrences.count
+    assert email_occurrences.all? { |o| o.user_email == email }
+  end
+
+  # Tests for create_github_issue
+  test "create_github_issue returns existing issue if already created" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      github_issue_number: 456,
+      github_issue_url: "https://github.com/owner/repo/issues/456"
+    )
+
+    result = error_log.create_github_issue
+
+    assert result.success
+    assert_equal 456, result.issue_number
+    assert_includes result.error_message, "already exists"
+  end
+
+  # Tests for find_or_create_with_occurrence updating existing records
+  test "find_or_create_with_occurrence updates request_params when missing" do
+    error_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "TestError",
+      message: "Test message"
+    )
+
+    assert_nil error_log.request_params
+
+    updated_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "TestError",
+      message: "Test message",
+      request_params: { path: "/test", method: "GET" }
+    )
+
+    assert_equal error_log.id, updated_log.id
+    error_log.reload
+    assert_equal({ "path" => "/test", "method" => "GET" }, error_log.request_params)
+  end
+
+  test "find_or_create_with_occurrence updates user_agent when missing" do
+    error_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "TestError",
+      message: "Test message"
+    )
+
+    assert_nil error_log.user_agent
+
+    updated_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "TestError",
+      message: "Test message",
+      user_agent: "Mozilla/5.0"
+    )
+
+    assert_equal error_log.id, updated_log.id
+    error_log.reload
+    assert_equal "Mozilla/5.0", error_log.user_agent
+  end
+
+  test "find_or_create_with_occurrence does not overwrite existing request_params" do
+    error_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "TestError",
+      message: "Test message",
+      request_params: { path: "/original" }
+    )
+
+    updated_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: "TestError",
+      message: "Test message",
+      request_params: { path: "/new" }
+    )
+
+    error_log.reload
+    assert_equal({ "path" => "/original" }, error_log.request_params)
+  end
 end
