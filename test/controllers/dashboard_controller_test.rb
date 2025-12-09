@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "ostruct"
+require "minitest/mock"
 
 class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
   setup do
@@ -119,10 +120,26 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
       backtrace: "#{Rails.root}/Gemfile:1:in `<top>'"
     )
 
-    post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
+    blame_result = MarcoButterflyNet::Services::GitBlame::BlameResult.new(
+      file: "Gemfile",
+      line_number: 1,
+      commit_sha: "abc123",
+      author_name: "Test Author",
+      author_email: "test@example.com",
+      commit_date: Time.current
+    )
 
-    assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
-    assert_equal "Git blame information retrieved successfully.", flash[:notice]
+    service_mock = Minitest::Mock.new
+    service_mock.expect(:blame_from_backtrace, blame_result, [ error_log.backtrace_lines ])
+
+    MarcoButterflyNet::Services::GitBlame.stub(:new, service_mock) do
+      post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
+
+      assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
+      assert_equal "Git blame information retrieved successfully.", flash[:notice]
+    end
+
+    service_mock.verify
   end
 
   test "fetch_blame handles missing blame info" do
