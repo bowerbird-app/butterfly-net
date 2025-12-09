@@ -344,6 +344,188 @@ module MarcoButterflyNet
         assert_equal 0, breakdown["resolved"]
         assert_equal 0, breakdown["dismissed"]
       end
+
+      test "total_open_errors handles empty database" do
+        # Ensure no errors exist
+        ErrorLog.delete_all
+
+        assert_equal 0, @analytics.total_open_errors
+      end
+
+      test "total_affected_users_today counts by both ID and email as separate identifiers" do
+        today = Time.current.beginning_of_day
+
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+
+        # User with both ID and email - should count as one unique identifier (the ID)
+        error_log.occurrences.create!(user_id: "user1", user_email: "user1@test.com", created_at: today)
+
+        # Same user ID, different email - should count as same user (by ID)
+        error_log.occurrences.create!(user_id: "user1", user_email: "different@test.com", created_at: today)
+
+        # Different user with only email
+        error_log.occurrences.create!(user_id: nil, user_email: "user2@test.com", created_at: today)
+
+        # user1 (via ID) and user2@test.com = 2 unique identifiers
+        assert_equal 2, @analytics.total_affected_users_today
+      end
+
+      test "mean_time_to_resolution ignores errors without resolved_at" do
+        # Create resolved error without resolved_at (shouldn't happen but test edge case)
+        error1 = ErrorLog.create!(
+          exception_class: "Error1",
+          message: "msg1",
+          status: "resolved",
+          created_at: 10.hours.ago
+        )
+        # Don't set resolved_at
+
+        assert_equal 0.0, @analytics.mean_time_to_resolution
+      end
+
+      test "top_frequent_errors handles errors with same occurrence count" do
+        error1 = ErrorLog.create!(exception_class: "Error1", message: "msg1")
+        error2 = ErrorLog.create!(exception_class: "Error2", message: "msg2")
+
+        # Both have same occurrence count
+        3.times { error1.occurrences.create! }
+        3.times { error2.occurrences.create! }
+
+        top_errors = @analytics.top_frequent_errors(limit: 10)
+
+        assert_equal 2, top_errors.length
+        # Both should have occurrence_count of 3
+        assert_equal 3, top_errors[0][:occurrence_count]
+        assert_equal 3, top_errors[1][:occurrence_count]
+      end
+
+      test "affected_users_over_time handles user with both ID and email" do
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+
+        date = 2.days.ago.to_date
+        # Same user with ID and email
+        error_log.occurrences.create!(user_id: "user1", user_email: "user1@test.com", created_at: date.to_time)
+        # Another occurrence of same user
+        error_log.occurrences.create!(user_id: "user1", user_email: "user1@test.com", created_at: date.to_time + 1.hour)
+
+        data = @analytics.affected_users_over_time(days: 5)
+
+        two_days_ago_data = data.find { |d| d[:date] == date.to_s }
+        # Should count user1 only once
+        assert_equal 1, two_days_ago_data[:count]
+      end
+
+      test "error_occurrences_over_time handles empty results" do
+        data = @analytics.error_occurrences_over_time(days: 7)
+
+        assert_equal 7, data.length
+        # All days should have 0 count
+        assert data.all? { |d| d[:count] == 0 }
+      end
+
+      test "new_errors_over_time handles multiple errors on same day" do
+        date = 3.days.ago.to_date
+
+        5.times do |i|
+          ErrorLog.create!(
+            exception_class: "Error#{i}",
+            message: "msg#{i}",
+            created_at: date.to_time + i.hours
+          )
+        end
+
+        data = @analytics.new_errors_over_time(days: 5)
+
+        three_days_ago_data = data.find { |d| d[:date] == date.to_s }
+        assert_equal 5, three_days_ago_data[:count]
+      end
+
+      test "total_occurrences_today counts all occurrences regardless of user" do
+        today = Time.current.beginning_of_day
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+
+        # Mix of occurrences with and without user tracking
+        3.times { error_log.occurrences.create!(created_at: today) }
+        2.times { error_log.occurrences.create!(user_id: "user1", created_at: today) }
+        1.times { error_log.occurrences.create!(user_email: "user@test.com", created_at: today) }
+
+        assert_equal 6, @analytics.total_occurrences_today
+      end
+
+      test "mean_time_to_resolution handles very short resolution times" do
+        # Create error resolved in 1 second
+        error = ErrorLog.create!(
+          exception_class: "QuickFix",
+          message: "msg",
+          status: "resolved",
+          created_at: 1.second.ago
+        )
+        error.update!(resolved_at: Time.current)
+
+        result = @analytics.mean_time_to_resolution
+
+        # Should be close to 0 hours but not exactly 0
+        assert result >= 0
+        assert result < 0.01 # Less than 0.01 hours (36 seconds)
+      end
+
+      test "mean_time_to_resolution handles very long resolution times" do
+        # Create error resolved after 30 days
+        error = ErrorLog.create!(
+          exception_class: "LongFix",
+          message: "msg",
+          status: "resolved",
+          created_at: 30.days.ago
+        )
+        error.update!(resolved_at: Time.current)
+
+        result = @analytics.mean_time_to_resolution
+
+        # Should be approximately 720 hours (30 days)
+        assert_in_delta 720.0, result, 1.0
+      end
+
+      test "error_status_breakdown includes all statuses even when none exist" do
+        ErrorLog.delete_all
+
+        breakdown = @analytics.error_status_breakdown
+
+        ErrorLog::STATUSES.each do |status|
+          assert_equal 0, breakdown[status], "Expected status #{status} to have count 0"
+        end
+      end
+
+      test "affected_users_over_time returns sorted results by date" do
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+
+        # Create occurrences on random dates
+        [ 5, 2, 8, 1 ].each do |days_ago|
+          date = days_ago.days.ago.to_date
+          error_log.occurrences.create!(user_id: "user#{days_ago}", created_at: date.to_time)
+        end
+
+        data = @analytics.affected_users_over_time(days: 10)
+
+        # Verify results are sorted by date
+        dates = data.map { |d| d[:date] }
+        assert_equal dates.sort, dates
+      end
+
+      test "error_occurrences_over_time returns sorted results by date" do
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+
+        # Create occurrences on random dates
+        [ 3, 1, 5 ].each do |days_ago|
+          date = days_ago.days.ago.to_date
+          error_log.occurrences.create!(created_at: date.to_time)
+        end
+
+        data = @analytics.error_occurrences_over_time(days: 7)
+
+        # Verify results are sorted by date
+        dates = data.map { |d| d[:date] }
+        assert_equal dates.sort, dates
+      end
     end
   end
 end

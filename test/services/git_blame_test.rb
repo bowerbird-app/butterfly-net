@@ -269,4 +269,71 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
     assert_equal "test.rb", result.file
     assert_equal 1, result.line_number
   end
+
+  test "backtrace line regex matches valid formats" do
+    valid_lines = [
+      "/app/models/user.rb:42:in `save'",
+      "/home/user/project/lib/helper.rb:10:in `block in <top>'",
+      "C:/Users/name/project/app.rb:1:in `<main>'"
+    ]
+
+    valid_lines.each do |line|
+      match = line.match(MarcoButterflyNet::Services::GitBlame::BACKTRACE_LINE_REGEX)
+      assert_not_nil match, "Expected regex to match: #{line}"
+    end
+  end
+
+  test "backtrace line regex does not match invalid formats" do
+    invalid_lines = [
+      "not a backtrace line",
+      "/path/to/file.rb",
+      "/path/to/file.rb:42",
+      "42:in `method'"
+    ]
+
+    invalid_lines.each do |line|
+      match = line.match(MarcoButterflyNet::Services::GitBlame::BACKTRACE_LINE_REGEX)
+      assert_nil match, "Expected regex not to match: #{line}"
+    end
+  end
+
+  test "blame_file returns nil when file not tracked by git" do
+    # Create a temporary file that exists but is not in git
+    temp_file = File.join(@repo_path, "temp_untracked_file.rb")
+    File.write(temp_file, "# untracked file")
+
+    begin
+      result = @service.blame_file(temp_file, 1)
+      assert_nil result, "Expected nil for untracked file"
+    ensure
+      File.delete(temp_file) if File.exist?(temp_file)
+    end
+  end
+
+  test "run_git_blame handles directory change errors" do
+    # Use a service with an invalid repo path
+    service = MarcoButterflyNet::Services::GitBlame.new(repo_path: "/nonexistent/path")
+    result = service.send(:run_git_blame, "Gemfile", 1)
+    assert_nil result
+  end
+
+  test "blame_file handles git command failure gracefully" do
+    # Test with a non-existent file which will cause git blame to fail
+    result = @service.blame_file("nonexistent_file_that_does_not_exist.txt", 1)
+    assert_nil result
+  end
+
+  test "parse_porcelain_output handles output with no line content" do
+    output = <<~GIT_BLAME
+      abc123 1 1 1
+      author Test Author
+      author-mail <test@example.com>
+      author-time 1234567890
+    GIT_BLAME
+
+    result = @service.send(:parse_porcelain_output, output, "test.rb", 1)
+
+    assert_not_nil result
+    assert_nil result.line_content
+  end
 end

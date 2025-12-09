@@ -269,4 +269,127 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
   ensure
     MarcoButterflyNet.reset_configuration!
   end
+
+  test "index JSON includes all required error_log fields" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "TestError",
+      message: "Test message",
+      status: "open",
+      github_issue_number: 123,
+      github_issue_url: "https://github.com/test/repo/issues/123"
+    )
+    error_log.occurrences.create!(user_id: "user1")
+
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    error_data = json_response["error_logs"].first
+
+    assert_equal "TestError", error_data["exception_class"]
+    assert_equal "Test message", error_data["message"]
+    assert_equal "open", error_data["status"]
+    assert_equal 123, error_data["github_issue_number"]
+    assert_equal "https://github.com/test/repo/issues/123", error_data["github_issue_url"]
+    assert error_data["has_github_issue"]
+    assert_not_nil error_data["occurrence_count"]
+    assert_not_nil error_data["last_seen"]
+  end
+
+  test "fetch_blame handles errors during blame retrieval" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: "invalid backtrace"
+    )
+
+    # Mock fetch_blame_info to raise error on the specific instance
+    error_log.define_singleton_method(:fetch_blame_info) do |*args|
+      raise StandardError, "Blame error"
+    end
+
+    # Mock ErrorLog.find to return our mocked instance
+    original_find = MarcoButterflyNet::ErrorLog.method(:find)
+    MarcoButterflyNet::ErrorLog.define_singleton_method(:find) do |id|
+      error_log if id.to_s == error_log.id.to_s
+    end
+
+    begin
+      assert_raises(StandardError) do
+        post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
+      end
+    ensure
+      # Restore original method
+      MarcoButterflyNet::ErrorLog.define_singleton_method(:find, original_find)
+    end
+  end
+
+  test "create_issue updates error log with issue details" do
+    MarcoButterflyNet.configure do |config|
+      config.github_access_token = "fake_token"
+      config.github_repo_owner = "test_owner"
+      config.github_repo_name = "test_repo"
+    end
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock successful issue creation
+    MarcoButterflyNet::Services::GitHubIssueCreator.stub :new, -> {
+      creator = Object.new
+      def creator.configured?; true; end
+      def creator.repo; "test_owner/test_repo"; end
+      def creator.create_issue_for_error(*args)
+        MarcoButterflyNet::Services::GitHubIssueCreator::IssueResult.new(
+          success: true,
+          issue_number: 456,
+          issue_url: "https://github.com/test_owner/test_repo/issues/456",
+          error_message: nil
+        )
+      end
+      creator
+    } do
+      post marco_butterfly_net.create_issue_dashboard_path(error_log)
+    end
+
+    error_log.reload
+    assert_equal 456, error_log.github_issue_number
+    assert_equal "https://github.com/test_owner/test_repo/issues/456", error_log.github_issue_url
+  ensure
+    MarcoButterflyNet.reset_configuration!
+  end
+
+  test "index JSON handles errors with no occurrences" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "NoOccurrenceError",
+      message: "Test message"
+    )
+    # Don't create any occurrences
+
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    error_data = json_response["error_logs"].first
+
+    assert_equal 0, error_data["occurrence_count"]
+    assert_equal 0, error_data["affected_count"]
+  end
+
+  test "show handles non-existent error log" do
+    get marco_butterfly_net.dashboard_path(99999)
+    assert_response :not_found
+  end
+
+  test "fetch_blame handles non-existent error log" do
+    post marco_butterfly_net.fetch_blame_dashboard_path(99999)
+    assert_response :not_found
+  end
+
+  test "create_issue handles non-existent error log" do
+    post marco_butterfly_net.create_issue_dashboard_path(99999)
+    assert_response :not_found
+  end
 end
