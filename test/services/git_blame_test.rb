@@ -318,16 +318,9 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
   end
 
   test "blame_file handles git command failure gracefully" do
-    # Mock git command to fail
-    service = @service
-    
-    # Stub system call to simulate git failure
-    service.stub :`, "" do
-      $?.stub :success?, false do
-        result = service.send(:run_git_blame, "Rakefile", 1)
-        assert_nil result
-      end
-    end
+    # Test with a non-existent file which will cause git blame to fail
+    result = @service.blame_file("nonexistent_file_that_does_not_exist.txt", 1)
+    assert_nil result
   end
 
   test "parse_porcelain_output handles output with no line content" do
