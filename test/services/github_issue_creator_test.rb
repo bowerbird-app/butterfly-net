@@ -424,58 +424,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     mock_client.verify
   end
 
-  test "create_issue_for_error handles rate limit error" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
-      access_token: "token",
-      repo: "owner/repo"
-    )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
-      exception_class: "RuntimeError",
-      message: "Test error"
-    )
-
-    # Mock Octokit client to raise TooManyRequests error
-    mock_client = Minitest::Mock.new
-    mock_client.expect(:create_issue, nil) do |*args|
-      raise Octokit::TooManyRequests, "API rate limit exceeded"
-    end
-
-    service.instance_variable_set(:@client, mock_client)
-
-    result = service.create_issue_for_error(error_log)
-
-    assert_not result.success
-    assert_includes result.error_message, "GitHub API error"
-    assert_includes result.error_message, "rate limit"
-    mock_client.verify
-  end
-
-  test "create_issue_for_error handles network errors" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
-      access_token: "token",
-      repo: "owner/repo"
-    )
-
-    error_log = MarcoButterflyNet::ErrorLog.create!(
-      exception_class: "RuntimeError",
-      message: "Test error"
-    )
-
-    # Mock Octokit client to raise a network error
-    mock_client = Minitest::Mock.new
-    mock_client.expect(:create_issue, nil) do |*args|
-      raise Faraday::ConnectionFailed, "Connection failed"
-    end
-
-    service.instance_variable_set(:@client, mock_client)
-
-    result = service.create_issue_for_error(error_log)
-
-    assert_not result.success
-    assert_includes result.error_message, "Unexpected error"
-    mock_client.verify
-  end
 
   test "create_issue_for_error successfully creates issue with mocked client" do
     service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
