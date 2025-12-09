@@ -456,4 +456,166 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
     assert_includes filtered, "password=[FILTERED]"
     assert_includes filtered, "email=test%40example.com"
   end
+
+  # Edge Case: Database connection failures during exception capture
+  test "persist_exception handles database connection not established error" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    exception = StandardError.new("Test error")
+    env = {}
+
+    # Simulate database connection not established
+    MarcoButterflyNet::ErrorLog.stub :find_or_create_with_occurrence, ->(*args) {
+      raise ActiveRecord::ConnectionNotEstablished, "Database connection not established"
+    } do
+      # Should not raise, just log
+      assert_nothing_raised do
+        middleware.send(:persist_exception, exception, env)
+      end
+    end
+  end
+
+  test "persist_exception handles database unavailable scenario" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    exception = StandardError.new("Test error")
+    env = {}
+
+    # Simulate database completely unavailable
+    MarcoButterflyNet::ErrorLog.stub :find_or_create_with_occurrence, ->(*args) {
+      raise ActiveRecord::NoDatabaseError, "Database does not exist"
+    } do
+      # Should not raise, just log
+      assert_nothing_raised do
+        middleware.send(:persist_exception, exception, env)
+      end
+    end
+  end
+
+  test "middleware re-raises original exception when database fails" do
+    error = RuntimeError.new("Original application error")
+    app = ->(_env) { raise error }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+
+    # Mock database failure during persistence
+    MarcoButterflyNet::ErrorLog.stub :find_or_create_with_occurrence, ->(*args) {
+      raise ActiveRecord::ConnectionNotEstablished, "DB down"
+    } do
+      # Should still raise the original error, not the database error
+      raised_error = assert_raises(RuntimeError) do
+        middleware.call({})
+      end
+
+      assert_equal "Original application error", raised_error.message
+      assert_equal error, raised_error
+    end
+  end
+
+  # Edge Case: Circular references in params
+  test "filter_params handles circular reference in hash" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    # Create a hash with circular reference
+    params = { "user" => { "name" => "John" } }
+    params["user"]["self"] = params["user"]
+
+    # Should not raise StackLevelTooDeep or SystemStackError
+    assert_nothing_raised do
+      filtered = middleware.send(:filter_params, params)
+      # Verify basic filtering still works
+      assert_equal "John", filtered["user"]["name"]
+    end
+  end
+
+  test "filter_params handles deeply nested circular reference" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    # Create multiple levels with circular reference
+    params = { "level1" => { "level2" => { "password" => "secret" } } }
+    params["level1"]["level2"]["circular"] = params
+
+    # Should not crash due to depth limit
+    assert_nothing_raised do
+      filtered = middleware.send(:filter_params, params)
+      assert_not_nil filtered
+    end
+  end
+
+  test "safe_params handles circular references in request params" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    request = Object.new
+    def request.params
+      # Simulate params with circular reference
+      p = { "data" => {} }
+      p["data"]["self"] = p
+      p
+    end
+
+    # Should handle gracefully without crashing
+    assert_nothing_raised do
+      result = middleware.send(:safe_params, request)
+      # Verify we get a hash back (even if it has circular refs)
+      assert_kind_of Hash, result
+    end
+  end
+
+  # Edge Case: Very large backtrace handling
+  test "persist_exception handles very large backtrace (1000+ lines)" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    exception = StandardError.new("Test error")
+    # Create a backtrace with 1500 lines
+    large_backtrace = (1..1500).map { |i| "/app/lib/file#{i}.rb:#{i}:in `method#{i}'" }
+    exception.set_backtrace(large_backtrace)
+
+    env = {
+      "REQUEST_METHOD" => "POST",
+      "PATH_INFO" => "/test",
+      "rack.input" => StringIO.new
+    }
+
+    # Should handle large backtrace without memory issues
+    assert_nothing_raised do
+      middleware.send(:persist_exception, exception, env)
+    end
+
+    error_log = MarcoButterflyNet::ErrorLog.last
+    assert_not_nil error_log
+    # Verify backtrace was stored (it will be a very long string)
+    assert error_log.backtrace.length > 10000
+  end
+
+  test "extract_request_params handles very large params" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    # Create very large params (simulate large file upload metadata)
+    large_data = "x" * 100000
+    env = {
+      "REQUEST_METHOD" => "POST",
+      "PATH_INFO" => "/upload",
+      "QUERY_STRING" => "file_size=large",
+      "rack.input" => StringIO.new("data=#{large_data}")
+    }
+
+    # Should handle large params without issues
+    assert_nothing_raised do
+      params = middleware.send(:extract_request_params, env)
+      assert_equal "/upload", params[:path]
+      assert_equal "POST", params[:method]
+    end
+  end
+
+  test "middleware handles exception with extremely long message" do
+    error = StandardError.new("Error: " + "x" * 50000)
+    app = ->(_env) { raise error }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+
+    assert_raises(StandardError) do
+      middleware.call({})
+    end
+
+    # Verify it was captured despite large message
+    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
+    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal error, captured[:exception]
+  end
 end
