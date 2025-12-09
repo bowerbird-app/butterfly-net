@@ -359,10 +359,10 @@ module MarcoButterflyNet
 
         # User with both ID and email - should count as one unique identifier (the ID)
         error_log.occurrences.create!(user_id: "user1", user_email: "user1@test.com", created_at: today)
-        
+
         # Same user ID, different email - should count as same user (by ID)
         error_log.occurrences.create!(user_id: "user1", user_email: "different@test.com", created_at: today)
-        
+
         # Different user with only email
         error_log.occurrences.create!(user_id: nil, user_email: "user2@test.com", created_at: today)
 
@@ -425,7 +425,7 @@ module MarcoButterflyNet
 
       test "new_errors_over_time handles multiple errors on same day" do
         date = 3.days.ago.to_date
-        
+
         5.times do |i|
           ErrorLog.create!(
             exception_class: "Error#{i}",
@@ -463,7 +463,7 @@ module MarcoButterflyNet
         error.update!(resolved_at: Time.current)
 
         result = @analytics.mean_time_to_resolution
-        
+
         # Should be close to 0 hours but not exactly 0
         assert result >= 0
         assert result < 0.01 # Less than 0.01 hours (36 seconds)
@@ -480,7 +480,7 @@ module MarcoButterflyNet
         error.update!(resolved_at: Time.current)
 
         result = @analytics.mean_time_to_resolution
-        
+
         # Should be approximately 720 hours (30 days)
         assert_in_delta 720.0, result, 1.0
       end

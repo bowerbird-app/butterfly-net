@@ -303,13 +303,24 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
       backtrace: "invalid backtrace"
     )
 
-    # Mock fetch_blame_info to raise error
-    MarcoButterflyNet::ErrorLog.any_instance.stub :fetch_blame_info, ->(*args) {
+    # Mock fetch_blame_info to raise error on the specific instance
+    error_log.define_singleton_method(:fetch_blame_info) do |*args|
       raise StandardError, "Blame error"
-    } do
+    end
+
+    # Mock ErrorLog.find to return our mocked instance
+    original_find = MarcoButterflyNet::ErrorLog.method(:find)
+    MarcoButterflyNet::ErrorLog.define_singleton_method(:find) do |id|
+      error_log if id.to_s == error_log.id.to_s
+    end
+
+    begin
       assert_raises(StandardError) do
         post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
       end
+    ensure
+      # Restore original method
+      MarcoButterflyNet::ErrorLog.define_singleton_method(:find, original_find)
     end
   end
 
