@@ -51,24 +51,27 @@ We start SimpleCov in **both** locations to ensure coverage tracking begins befo
 
 ### Using require_relative Instead of Autoloading
 
-The test_helper explicitly requires all lib files using `require_relative` after Rails loads:
+The test_helper explicitly requires the main gem file using `require_relative` after Rails loads:
 
 ```ruby
-require_relative "../lib/marco_butterfly_net/version"
-require_relative "../lib/marco_butterfly_net/configuration"
-require_relative "../lib/marco_butterfly_net/engine"
-require_relative "../lib/marco_butterfly_net/middleware/exception_catcher"
-require_relative "../lib/marco_butterfly_net/services/git_blame"
-require_relative "../lib/marco_butterfly_net/services/github_issue_creator"
-require_relative "../lib/marco_butterfly_net/services/analytics"
 require_relative "../lib/marco_butterfly_net"
 ```
+
+The main gem file (`lib/marco_butterfly_net.rb`) then requires all its dependencies:
+- `marco_butterfly_net/version`
+- `marco_butterfly_net/engine`
+- `marco_butterfly_net/configuration`
+- `marco_butterfly_net/middleware/exception_catcher`
+- `marco_butterfly_net/services/git_blame`
+- `marco_butterfly_net/services/github_issue_creator`
+- `marco_butterfly_net/services/analytics`
 
 This ensures:
 - Consistent code loading behavior
 - Better coverage tracking (SimpleCov can hook into `require_relative`)
 - Files are loaded even if they aren't autoloaded during tests
 - No reliance on Rails autoloading behavior in tests
+- Proper dependency order (main file requires its dependencies)
 
 ## Verification
 

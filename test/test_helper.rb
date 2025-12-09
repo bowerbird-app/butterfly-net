@@ -24,16 +24,10 @@ ActiveRecord::Migrator.migrations_paths = [ File.expand_path("dummy/db/migrate",
 # ActiveRecord::Migrator.migrations_paths << File.expand_path("../db/migrate", __dir__)
 require "rails/test_help"
 
-# Explicitly require lib files using require_relative to ensure they are loaded
-# and tracked by SimpleCov. Using require_relative instead of relying on autoloading
-# ensures consistent code loading and better coverage tracking.
-require_relative "../lib/marco_butterfly_net/version"
-require_relative "../lib/marco_butterfly_net/configuration"
-require_relative "../lib/marco_butterfly_net/engine"
-require_relative "../lib/marco_butterfly_net/middleware/exception_catcher"
-require_relative "../lib/marco_butterfly_net/services/git_blame"
-require_relative "../lib/marco_butterfly_net/services/github_issue_creator"
-require_relative "../lib/marco_butterfly_net/services/analytics"
+# Explicitly require the main gem file using require_relative to ensure all lib files
+# are loaded and tracked by SimpleCov. The main file will require all its dependencies.
+# Using require_relative instead of relying on autoloading ensures consistent code
+# loading and better coverage tracking.
 require_relative "../lib/marco_butterfly_net"
 
 # Load fixtures from the engine
