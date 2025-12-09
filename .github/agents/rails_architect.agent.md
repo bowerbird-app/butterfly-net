@@ -134,6 +134,24 @@ For engine-specific concerns (routing, asset isolation, namespace conflicts), pr
 
 ## 7. Git Workflow & Merge Management
 
+### Before Committing: Run Rubocop
+
+Before committing any changes, ALWAYS run rubocop to ensure code style compliance:
+
+```bash
+bin/rubocop
+```
+
+If rubocop reports any offenses:
+- Review the offenses and fix them
+- Re-run rubocop to verify all issues are resolved
+- Only proceed with committing after rubocop passes without errors
+
+If rubocop reports autocorrectable offenses, you can use:
+```bash
+bin/rubocop -a
+```
+
 After committing changes, ALWAYS execute the following workflow:
 
 ### Step 1: Fetch latest changes from main
