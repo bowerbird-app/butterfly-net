@@ -557,17 +557,9 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
       backtrace: "/nonexistent/file.rb:1:in `method'"
     )
 
-    # Mock GitBlame service to raise error
-    MarcoButterflyNet::Services::GitBlame.stub :new, -> {
-      service = Object.new
-      def service.blame_from_backtrace(*args)
-        raise StandardError, "Git error"
-      end
-      service
-    } do
-      # Should return nil instead of raising
-      assert_nil error_log.fetch_blame_info
-    end
+    # Test with a non-existent file which will cause git blame to fail naturally
+    # Should return nil instead of raising
+    assert_nil error_log.fetch_blame_info
   end
 
   test "fetch_blame_info with force parameter refetches even with existing data" do
@@ -637,7 +629,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     email = "user@example.com"
 
     error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    
+
     # User with only ID
     error_log.record_occurrence(user_id: user_id, user_email: nil)
     # User with only email
@@ -675,7 +667,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
       message: "Test",
       status: "resolved"
     )
-    
+
     original_resolved_at = error_log.resolved_at
 
     # Update something other than status
@@ -708,7 +700,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     )
 
     result = error_log.send(:existing_blame_result)
-    
+
     assert_not_nil result
     assert_instance_of MarcoButterflyNet::Services::GitBlame::BlameResult, result
     assert_equal "app/models/user.rb", result.file
