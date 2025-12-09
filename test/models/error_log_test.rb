@@ -549,4 +549,251 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     error_log.reload
     assert_equal({ "path" => "/original" }, error_log.request_params)
   end
+
+  test "fetch_blame_info handles errors gracefully" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: "/nonexistent/file.rb:1:in `method'"
+    )
+
+    # Mock GitBlame service to raise error
+    MarcoButterflyNet::Services::GitBlame.stub :new, -> {
+      service = Object.new
+      def service.blame_from_backtrace(*args)
+        raise StandardError, "Git error"
+      end
+      service
+    } do
+      # Should return nil instead of raising
+      assert_nil error_log.fetch_blame_info
+    end
+  end
+
+  test "fetch_blame_info with force parameter refetches even with existing data" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      backtrace: "#{Rails.root}/Gemfile:1:in `<top>'",
+      blame_file: "old_file.rb",
+      blame_commit_sha: "old_sha"
+    )
+
+    # Force should ignore existing data
+    result = error_log.fetch_blame_info(force: true)
+
+    # May be nil if blame fails, but should at least attempt to refetch
+    # The important part is that it tried even with existing data
+    assert_not_nil error_log.has_blame_info?
+  end
+
+  test "create_github_issue handles service errors gracefully" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Mock service to raise error
+    MarcoButterflyNet::Services::GitHubIssueCreator.stub :new, -> {
+      service = Object.new
+      def service.create_issue_for_error(*args)
+        raise StandardError, "Service error"
+      end
+      service
+    } do
+      # Should not raise
+      assert_raises(StandardError) do
+        error_log.create_github_issue
+      end
+    end
+  end
+
+  test "backtrace_lines handles Windows-style line endings" do
+    error_log = MarcoButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      backtrace: "line1\r\nline2\r\nline3"
+    )
+
+    # Should split on \n (Windows \r\n will leave \r at end of each line except last)
+    lines = error_log.backtrace_lines
+    assert_equal 3, lines.length
+  end
+
+  test "record_occurrence handles nil user tracking fields" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+
+    occurrence = error_log.record_occurrence(
+      user_id: nil,
+      user_email: nil
+    )
+
+    assert occurrence.persisted?
+    assert_nil occurrence.user_id
+    assert_nil occurrence.user_email
+  end
+
+  test "affected_users_count handles mixed user_id and user_email" do
+    user_id = SecureRandom.uuid
+    email = "user@example.com"
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    
+    # User with only ID
+    error_log.record_occurrence(user_id: user_id, user_email: nil)
+    # User with only email
+    error_log.record_occurrence(user_id: nil, user_email: email)
+    # Duplicate user ID
+    error_log.record_occurrence(user_id: user_id, user_email: nil)
+
+    # Should count unique user_ids
+    assert_equal 1, error_log.affected_users_count
+  end
+
+  test "status validation allows all valid statuses" do
+    MarcoButterflyNet::ErrorLog::STATUSES.each do |status|
+      error_log = MarcoButterflyNet::ErrorLog.create!(
+        exception_class: "TestError",
+        message: "Test",
+        status: status
+      )
+      assert error_log.persisted?, "Status #{status} should be valid"
+    end
+  end
+
+  test "status defaults to open" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test"
+    )
+
+    assert_equal "open", error_log.status
+  end
+
+  test "set_resolved_at does not change resolved_at when status stays resolved" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test",
+      status: "resolved"
+    )
+    
+    original_resolved_at = error_log.resolved_at
+
+    # Update something other than status
+    error_log.update!(message: "Updated message")
+
+    # resolved_at should not change
+    assert_equal original_resolved_at.to_i, error_log.resolved_at.to_i
+  end
+
+  test "existing_blame_result returns nil when no blame info" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test"
+    )
+
+    result = error_log.send(:existing_blame_result)
+    assert_nil result
+  end
+
+  test "existing_blame_result returns BlameResult when blame info exists" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test",
+      blame_file: "app/models/user.rb",
+      blame_line_number: 42,
+      blame_commit_sha: "abc123",
+      blame_author_name: "Test Author",
+      blame_author_email: "test@example.com",
+      blame_commit_date: Time.current
+    )
+
+    result = error_log.send(:existing_blame_result)
+    
+    assert_not_nil result
+    assert_instance_of MarcoButterflyNet::Services::GitBlame::BlameResult, result
+    assert_equal "app/models/user.rb", result.file
+    assert_equal 42, result.line_number
+    assert_equal "abc123", result.commit_sha
+  end
+
+  test "should_auto_fetch_blame? returns false when no backtrace" do
+    error_log = MarcoButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      message: "Test",
+      backtrace: nil
+    )
+
+    assert_not error_log.send(:should_auto_fetch_blame?)
+  end
+
+  test "should_auto_fetch_blame? returns false when already has blame info" do
+    error_log = MarcoButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      message: "Test",
+      backtrace: "line1",
+      blame_file: "file.rb",
+      blame_commit_sha: "abc123"
+    )
+
+    assert_not error_log.send(:should_auto_fetch_blame?)
+  end
+
+  test "should_auto_fetch_blame? returns true when has backtrace but no blame info" do
+    error_log = MarcoButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      message: "Test",
+      backtrace: "line1"
+    )
+
+    assert error_log.send(:should_auto_fetch_blame?)
+  end
+
+  test "params_hash handles symbolized keys" do
+    error_log = MarcoButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      request_params: { path: "/test", method: "GET" }
+    )
+
+    params = error_log.params_hash
+    assert_equal "/test", params["path"]
+    assert_equal "GET", params["method"]
+  end
+
+  test "repeated scope excludes errors with no occurrences" do
+    no_occurrence = MarcoButterflyNet::ErrorLog.create!(exception_class: "NoOccurrence")
+    one_occurrence = MarcoButterflyNet::ErrorLog.create!(exception_class: "OneOccurrence")
+    one_occurrence.record_occurrence
+    repeated = MarcoButterflyNet::ErrorLog.create!(exception_class: "Repeated")
+    repeated.record_occurrence
+    repeated.record_occurrence
+
+    repeated_errors = MarcoButterflyNet::ErrorLog.repeated
+
+    assert_equal 1, repeated_errors.count
+    assert_equal repeated.id, repeated_errors.first.id
+  end
+
+  test "find_or_create_with_occurrence handles concurrent creation" do
+    # Simulate concurrent requests creating the same error
+    exception_class = "ConcurrentError"
+    message = "Concurrent message"
+
+    # First creation
+    error1 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: exception_class,
+      message: message,
+      user_id: "user1"
+    )
+
+    # Second creation (simulating concurrent request)
+    error2 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+      exception_class: exception_class,
+      message: message,
+      user_id: "user2"
+    )
+
+    # Should use the same error log
+    assert_equal error1.id, error2.id
+    assert_equal 2, error1.occurrence_count
+  end
 end

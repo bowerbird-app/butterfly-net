@@ -317,4 +317,143 @@ class MarcoButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestC
       assert_equal "[FILTERED]", filtered[key], "Expected #{key} to be filtered"
     end
   end
+
+  test "persist_exception handles ActiveRecord::StatementInvalid gracefully" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    exception = StandardError.new("Test error")
+    env = {}
+
+    # Mock database error - simulate database is down
+    MarcoButterflyNet::ErrorLog.stub :find_or_create_with_occurrence, ->(*args) {
+      raise ActiveRecord::StatementInvalid, "PG::ConnectionBad: connection failed"
+    } do
+      # Should not raise, just log
+      assert_nothing_raised do
+        middleware.send(:persist_exception, exception, env)
+      end
+    end
+  end
+
+  test "persist_exception handles ActiveRecord::RecordInvalid gracefully" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    exception = StandardError.new("Test error")
+    env = {}
+
+    # Mock validation error
+    MarcoButterflyNet::ErrorLog.stub :find_or_create_with_occurrence, ->(*args) {
+      raise ActiveRecord::RecordInvalid, "Validation failed"
+    } do
+      # Should not raise, just log
+      assert_nothing_raised do
+        middleware.send(:persist_exception, exception, env)
+      end
+    end
+  end
+
+  test "persist_exception handles connection pool exhaustion" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    exception = StandardError.new("Test error")
+    env = {}
+
+    # Mock connection pool error
+    MarcoButterflyNet::ErrorLog.stub :find_or_create_with_occurrence, ->(*args) {
+      raise ActiveRecord::ConnectionTimeoutError, "could not obtain a connection from the pool"
+    } do
+      # Should not raise, just log
+      assert_nothing_raised do
+        middleware.send(:persist_exception, exception, env)
+      end
+    end
+  end
+
+  test "middleware re-raises original exception even when persistence fails" do
+    error = StandardError.new("Original error")
+    app = ->(_env) { raise error }
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(app)
+
+    # Mock persistence failure
+    MarcoButterflyNet::ErrorLog.stub :find_or_create_with_occurrence, ->(*args) {
+      raise StandardError, "DB error"
+    } do
+      # Should still raise the original error
+      raised_error = assert_raises(StandardError) do
+        middleware.call({})
+      end
+
+      assert_equal "Original error", raised_error.message
+      assert_equal error, raised_error
+    end
+  end
+
+  test "capture_and_persist marks exception as handled in env" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    exception = StandardError.new("Test error")
+    env = {}
+
+    middleware.capture_and_persist(exception, env)
+
+    assert env["marco_butterfly_net.exception_handled"]
+  end
+
+  test "handle_intercepted_exception class method creates handler and captures" do
+    env = { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test" }
+    error = RuntimeError.new("Test error")
+    error.set_backtrace([ "line1" ])
+
+    MarcoButterflyNet::Middleware::ExceptionCatcher.handle_intercepted_exception(error, env)
+
+    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
+    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal error, captured[:exception]
+  end
+
+  test "filter_params prevents infinite recursion with depth limit" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    # Create deeply nested hash (12 levels)
+    params = { "level1" => {} }
+    current = params["level1"]
+    11.times do |i|
+      current["level#{i + 2}"] = {}
+      current = current["level#{i + 2}"]
+    end
+    current["password"] = "secret"
+
+    # Should not raise StackLevelTooDeep
+    assert_nothing_raised do
+      filtered = middleware.send(:filter_params, params)
+      # The password at depth 12 should not be filtered due to depth limit
+      assert_not_nil filtered
+    end
+  end
+
+  test "extract_request_params handles missing rack.input" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    env = {
+      "REQUEST_METHOD" => "GET",
+      "PATH_INFO" => "/test",
+      "QUERY_STRING" => "key=value"
+      # Deliberately omitting rack.input
+    }
+
+    # Should not raise
+    assert_nothing_raised do
+      params = middleware.send(:extract_request_params, env)
+      assert_equal "/test", params[:path]
+      assert_equal "GET", params[:method]
+    end
+  end
+
+  test "filter_query_string handles special characters" do
+    middleware = MarcoButterflyNet::Middleware::ExceptionCatcher.new(nil)
+
+    query_string = "name=John+Doe&password=secret%21%40&email=test%40example.com"
+
+    filtered = middleware.send(:filter_query_string, query_string)
+
+    assert_includes filtered, "name=John+Doe"
+    assert_includes filtered, "password=[FILTERED]"
+    assert_includes filtered, "email=test%40example.com"
+  end
 end
