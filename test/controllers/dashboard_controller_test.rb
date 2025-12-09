@@ -122,6 +122,7 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
     post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
 
     assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
+    assert_equal "Git blame information retrieved successfully.", flash[:notice]
   end
 
   test "fetch_blame handles missing blame info" do
@@ -376,6 +377,53 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
 
     assert_equal 0, error_data["occurrence_count"]
     assert_equal 0, error_data["affected_count"]
+  end
+
+  test "error_log_json affected count fallback takes max of users and emails" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "TestError",
+      message: "Test message"
+    )
+    # Create 2 occurrences with user_id
+    error_log.occurrences.create!(user_id: "user1")
+    error_log.occurrences.create!(user_id: "user2")
+    # Create 3 occurrences with user_email (one more than user_id)
+    error_log.occurrences.create!(user_email: "email1@example.com")
+    error_log.occurrences.create!(user_email: "email2@example.com")
+    error_log.occurrences.create!(user_email: "email3@example.com")
+
+    # Call index without providing affected_count (triggers fallback calculation)
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    error_data = json_response["error_logs"].first
+    # Should return max(2, 3) = 3
+    assert_equal 3, error_data["affected_count"]
+  end
+
+  test "error_log_json affected count fallback handles user_id greater than user_email" do
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "TestError",
+      message: "Test message"
+    )
+    # Create 4 occurrences with user_id
+    error_log.occurrences.create!(user_id: "user1")
+    error_log.occurrences.create!(user_id: "user2")
+    error_log.occurrences.create!(user_id: "user3")
+    error_log.occurrences.create!(user_id: "user4")
+    # Create 2 occurrences with user_email (less than user_id)
+    error_log.occurrences.create!(user_email: "email1@example.com")
+    error_log.occurrences.create!(user_email: "email2@example.com")
+
+    # Call index without providing affected_count (triggers fallback calculation)
+    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    error_data = json_response["error_logs"].first
+    # Should return max(4, 2) = 4
+    assert_equal 4, error_data["affected_count"]
   end
 
   test "show handles non-existent error log" do
