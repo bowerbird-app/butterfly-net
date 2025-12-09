@@ -96,12 +96,12 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     # Verify the exception was captured by the middleware
     assert_equal 1, MarcoButterflyNet.captured_exceptions.length
     captured = MarcoButterflyNet.captured_exceptions.first
-    
+
     # Verify it has the env context from the request
     assert_not_nil captured[:env]
     assert_equal "GET", captured[:env]["REQUEST_METHOD"]
     assert_equal "/test/runtime_error", captured[:env]["PATH_INFO"]
-    
+
     # Verify it was persisted to the database
     assert_equal 1, MarcoButterflyNet::ErrorLog.count
     error_log = MarcoButterflyNet::ErrorLog.last
@@ -121,10 +121,10 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     # Verify the exception was captured (either by middleware or interceptor)
     assert MarcoButterflyNet.captured_exceptions.any?,
       "Exception should have been captured by middleware or DebugExceptions interceptor"
-    
+
     captured = MarcoButterflyNet.captured_exceptions.first
     assert_equal NameError, captured[:exception].class
-    
+
     # Verify persistence happened
     assert MarcoButterflyNet::ErrorLog.where(exception_class: "NameError").any?,
       "Exception should have been persisted to database"

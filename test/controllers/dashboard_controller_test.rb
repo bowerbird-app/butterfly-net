@@ -398,7 +398,7 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
 
   test "error_log_json affected count fallback takes max of users and emails" do
     controller = MarcoButterflyNet::DashboardController.new
-    
+
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "TestError",
       message: "Test message"
@@ -413,14 +413,14 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
 
     # Call error_log_json without the affected_count parameter to trigger fallback
     result = controller.send(:error_log_json, error_log)
-    
+
     # Should return max(2, 3) = 3
     assert_equal 3, result[:affected_count]
   end
 
   test "error_log_json affected count fallback handles user_id greater than user_email" do
     controller = MarcoButterflyNet::DashboardController.new
-    
+
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "TestError",
       message: "Test message"
@@ -436,7 +436,7 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
 
     # Call error_log_json without the affected_count parameter to trigger fallback
     result = controller.send(:error_log_json, error_log)
-    
+
     # Should return max(4, 2) = 4
     assert_equal 4, result[:affected_count]
   end
