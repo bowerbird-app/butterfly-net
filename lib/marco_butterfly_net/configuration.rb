@@ -23,7 +23,7 @@ module MarcoButterflyNet
 
     # Returns the full repository name in "owner/repo" format
     def full_repo_name
-      return nil unless github_repo_owner && github_repo_name
+      return nil unless github_repo_owner.present? && github_repo_name.present?
 
       "#{github_repo_owner}/#{github_repo_name}"
     end

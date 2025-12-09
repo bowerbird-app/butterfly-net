@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "ostruct"
 
 class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestCase
   setup do
@@ -368,5 +369,233 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes labels, "bug"
     assert_includes labels, "error-tracking"
     assert_equal 2, labels.length
+  end
+
+  # GitHub API failure tests
+  test "create_issue_for_error handles Octokit::Unauthorized error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "invalid_token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Stub the create_issue method on the client instance
+    client = service.client
+    client.define_singleton_method(:create_issue) do |*_args, **_kwargs|
+      response = OpenStruct.new(headers: {}, status: 401, body: { message: "Bad credentials" })
+      raise Octokit::Unauthorized.new(response)
+    end
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "Bad credentials"
+    assert_nil result.issue_number
+    assert_nil result.issue_url
+  end
+
+  test "create_issue_for_error handles Octokit::Forbidden error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Stub the create_issue method on the client instance
+    client = service.client
+    client.define_singleton_method(:create_issue) do |*_args, **_kwargs|
+      response = OpenStruct.new(headers: {}, status: 403, body: { message: "Resource not accessible by personal access token" })
+      raise Octokit::Forbidden.new(response)
+    end
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "not accessible"
+  end
+
+  test "create_issue_for_error handles Octokit::NotFound error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "nonexistent/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Stub the create_issue method on the client instance
+    client = service.client
+    client.define_singleton_method(:create_issue) do |*_args, **_kwargs|
+      response = OpenStruct.new(headers: {}, status: 404, body: { message: "Repository not found" })
+      raise Octokit::NotFound.new(response)
+    end
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "not found"
+  end
+
+  test "create_issue_for_error handles Octokit::TooManyRequests (rate limiting)" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Stub the create_issue method on the client instance
+    client = service.client
+    client.define_singleton_method(:create_issue) do |*_args, **_kwargs|
+      response = OpenStruct.new(headers: {}, status: 429, body: { message: "API rate limit exceeded" })
+      raise Octokit::TooManyRequests.new(response)
+    end
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "rate limit"
+  end
+
+  test "create_issue_for_error handles Octokit::ServerError" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Stub the create_issue method on the client instance
+    client = service.client
+    client.define_singleton_method(:create_issue) do |*_args, **_kwargs|
+      response = OpenStruct.new(headers: {}, status: 500, body: { message: "Internal server error" })
+      raise Octokit::ServerError.new(response)
+    end
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "GitHub API error"
+    assert_includes result.error_message, "Internal server error"
+  end
+
+  test "create_issue_for_error handles network timeout" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Stub the create_issue method on the client instance
+    client = service.client
+    client.define_singleton_method(:create_issue) do |*_args, **_kwargs|
+      raise Faraday::TimeoutError, "Request timeout"
+    end
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "Unexpected error"
+    assert_includes result.error_message, "timeout"
+  end
+
+  test "create_issue_for_error handles connection failed error" do
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Stub the create_issue method on the client instance
+    client = service.client
+    client.define_singleton_method(:create_issue) do |*_args, **_kwargs|
+      raise Faraday::ConnectionFailed, "Connection refused"
+    end
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "Unexpected error"
+    assert_includes result.error_message, "Connection"
+  end
+
+  test "create_issue_for_error handles invalid GitHub token format" do
+    # Create service with clearly invalid token format
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "not-a-valid-token-format",
+      repo: "owner/repo"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Stub the create_issue method on the client instance
+    client = service.client
+    client.define_singleton_method(:create_issue) do |*_args, **_kwargs|
+      response = OpenStruct.new(headers: {}, status: 401, body: { message: "Bad credentials" })
+      raise Octokit::Unauthorized.new(response)
+    end
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    assert_includes result.error_message, "Bad credentials"
+  end
+
+  test "create_issue_for_error with malformed repo format" do
+    # Test with repo that doesn't have owner/name format
+    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "invalid-repo-format"
+    )
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    # Stub the create_issue method on the client instance
+    # Note: Octokit::InvalidRepository is an ArgumentError, not an Octokit::Error
+    client = service.client
+    client.define_singleton_method(:create_issue) do |*_args, **_kwargs|
+      raise Octokit::InvalidRepository, "Invalid repository format"
+    end
+
+    result = service.create_issue_for_error(error_log)
+
+    assert_not result.success
+    # InvalidRepository is an ArgumentError, so it's caught by StandardError rescue
+    assert_includes result.error_message, "Unexpected error"
+    assert_includes result.error_message, "Invalid repository format"
   end
 end
