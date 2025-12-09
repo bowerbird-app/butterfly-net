@@ -108,6 +108,10 @@ bundle exec rake build
 bundle exec rake install
 ```
 
+**Database Migrations**:
+- Do NOT run `bin/rails db:migrate` in the root directory.
+- Always run migrations in the dummy app: `cd test/dummy && bin/rails db:migrate`.
+
 **Testing in Host Apps**:
 - Use local gem path in Gemfile for testing: `gem 'marco_butterfly_net', path: '/path/to/local/marco-butterfly-net'`
   - Replace `/path/to/local/` with the actual path to your local gem directory
