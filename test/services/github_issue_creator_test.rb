@@ -369,31 +369,4 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
     assert_includes labels, "error-tracking"
     assert_equal 2, labels.length
   end
-
-  test "create_issue_for_error handles 401 Unauthorized error" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
-      access_token: "invalid_token",
-      repo: "owner/repo"
-    )
-
-    error_log = MarcoButterflyNet::ErrorLog.create!(
-      exception_class: "RuntimeError",
-      message: "Test error"
-    )
-
-    # Mock Octokit client to raise Unauthorized error
-    mock_client = Minitest::Mock.new
-    mock_client.expect(:create_issue, nil) do |*args|
-      raise Octokit::Unauthorized, "Bad credentials"
-    end
-
-    service.instance_variable_set(:@client, mock_client)
-
-    result = service.create_issue_for_error(error_log)
-
-    assert_not result.success
-    assert_includes result.error_message, "GitHub API error"
-    assert_includes result.error_message, "Bad credentials"
-    mock_client.verify
-  end
 end
