@@ -1,7 +1,10 @@
 # Configure Rails Environment
 ENV["RAILS_ENV"] = "test"
 
-# Start SimpleCov for coverage reporting
+# Start SimpleCov for coverage reporting BEFORE any code is loaded
+# This ensures SimpleCov can track all code from the moment it's loaded
+# Note: SimpleCov may have already been started in Rakefile when running via rake tasks,
+# but calling start again is safe and won't reset coverage tracking
 if ENV["COVERAGE"]
   require "simplecov"
   SimpleCov.start "rails" do
@@ -21,18 +24,17 @@ ActiveRecord::Migrator.migrations_paths = [ File.expand_path("dummy/db/migrate",
 # ActiveRecord::Migrator.migrations_paths << File.expand_path("../db/migrate", __dir__)
 require "rails/test_help"
 
-# Eagerly load lib files for coverage tracking
-if ENV["COVERAGE"]
-  # Explicitly require lib files so SimpleCov can track them
-  require_relative "../lib/marco_butterfly_net"
-  require_relative "../lib/marco_butterfly_net/version"
-  require_relative "../lib/marco_butterfly_net/configuration"
-  require_relative "../lib/marco_butterfly_net/engine"
-  require_relative "../lib/marco_butterfly_net/middleware/exception_catcher"
-  require_relative "../lib/marco_butterfly_net/services/analytics"
-  require_relative "../lib/marco_butterfly_net/services/git_blame"
-  require_relative "../lib/marco_butterfly_net/services/github_issue_creator"
-end
+# Explicitly require lib files using require_relative to ensure they are loaded
+# and tracked by SimpleCov. Using require_relative instead of relying on autoloading
+# ensures consistent code loading and better coverage tracking.
+require_relative "../lib/marco_butterfly_net/version"
+require_relative "../lib/marco_butterfly_net/configuration"
+require_relative "../lib/marco_butterfly_net/engine"
+require_relative "../lib/marco_butterfly_net/middleware/exception_catcher"
+require_relative "../lib/marco_butterfly_net/services/git_blame"
+require_relative "../lib/marco_butterfly_net/services/github_issue_creator"
+require_relative "../lib/marco_butterfly_net/services/analytics"
+require_relative "../lib/marco_butterfly_net"
 
 # Load fixtures from the engine
 if ActiveSupport::TestCase.respond_to?(:fixture_paths=)
