@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-12-09
+
 ### Added
 - **User Tracking**: Track which users are affected by each error
   - New `error_occurrences` table to record individual error instances
@@ -68,5 +70,6 @@ This will:
 
 See git history for changes in versions prior to 0.3.0.
 
-[Unreleased]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/bowerbird-app/marco-butterfly-net/releases/tag/v0.3.0
