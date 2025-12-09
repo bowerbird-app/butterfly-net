@@ -85,4 +85,48 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     assert_equal "/test/name_error", error_log.request_params["path"]
     assert_equal "GET", error_log.request_params["method"]
   end
+
+  test "middleware intercepts exceptions early in the stack" do
+    # This test verifies that the middleware is actually active in the stack
+    # by confirming an exception is caught and stored before being re-raised
+    assert_raises(RuntimeError) do
+      get "/test/runtime_error"
+    end
+
+    # Verify the exception was captured by the middleware
+    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
+    captured = MarcoButterflyNet.captured_exceptions.first
+
+    # Verify it has the env context from the request
+    assert_not_nil captured[:env]
+    assert_equal "GET", captured[:env]["REQUEST_METHOD"]
+    assert_equal "/test/runtime_error", captured[:env]["PATH_INFO"]
+
+    # Verify it was persisted to the database
+    assert_equal 1, MarcoButterflyNet::ErrorLog.count
+    error_log = MarcoButterflyNet::ErrorLog.last
+    assert_equal "RuntimeError", error_log.exception_class
+  end
+
+  test "exceptions caught through ActionDispatch::DebugExceptions interceptor" do
+    # The DebugExceptions interceptor should catch exceptions that would
+    # otherwise only be rendered as error pages
+    # This is important for development mode where some exceptions don't propagate
+
+    # Trigger an exception
+    assert_raises(NameError) do
+      get "/test/name_error"
+    end
+
+    # Verify the exception was captured (either by middleware or interceptor)
+    assert MarcoButterflyNet.captured_exceptions.any?,
+      "Exception should have been captured by middleware or DebugExceptions interceptor"
+
+    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal NameError, captured[:exception].class
+
+    # Verify persistence happened
+    assert MarcoButterflyNet::ErrorLog.where(exception_class: "NameError").any?,
+      "Exception should have been persisted to database"
+  end
 end

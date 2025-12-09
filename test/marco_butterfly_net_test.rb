@@ -52,3 +52,29 @@ class MarcoButterflyNetTest < ActiveSupport::TestCase
     assert_empty MarcoButterflyNet.captured_exceptions
   end
 end
+
+class EngineInitializationTest < ActiveSupport::TestCase
+  test "middleware is inserted at position 0" do
+    # Get the middleware stack from the test app
+    middleware_stack = Rails.application.middleware.middlewares
+
+    # Find the ExceptionCatcher middleware
+    exception_catcher_index = middleware_stack.find_index do |middleware|
+      middleware.name == "MarcoButterflyNet::Middleware::ExceptionCatcher"
+    end
+
+    # Assert it was found and is at position 0
+    assert_not_nil exception_catcher_index, "ExceptionCatcher middleware not found in stack"
+    assert_equal 0, exception_catcher_index, "ExceptionCatcher middleware should be at position 0"
+  end
+
+  test "ActionDispatch::DebugExceptions interceptor is registered" do
+    # The interceptor should be registered during initialization
+    # We can test this by checking if the class has interceptors
+    assert_respond_to ActionDispatch::DebugExceptions, :interceptors
+
+    # Verify that interceptors exist (this confirms registration happened)
+    assert ActionDispatch::DebugExceptions.interceptors.any?,
+      "No interceptors registered with ActionDispatch::DebugExceptions"
+  end
+end

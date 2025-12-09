@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "ostruct"
+require "minitest/mock"
 
 class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
   setup do
@@ -119,9 +120,26 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
       backtrace: "#{Rails.root}/Gemfile:1:in `<top>'"
     )
 
-    post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
+    blame_result = MarcoButterflyNet::Services::GitBlame::BlameResult.new(
+      file: "Gemfile",
+      line_number: 1,
+      commit_sha: "abc123",
+      author_name: "Test Author",
+      author_email: "test@example.com",
+      commit_date: Time.current
+    )
 
-    assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
+    service_mock = Minitest::Mock.new
+    service_mock.expect(:blame_from_backtrace, blame_result, [ error_log.backtrace_lines ])
+
+    MarcoButterflyNet::Services::GitBlame.stub(:new, service_mock) do
+      post marco_butterfly_net.fetch_blame_dashboard_path(error_log)
+
+      assert_redirected_to marco_butterfly_net.dashboard_path(error_log)
+      assert_equal "Git blame information retrieved successfully.", flash[:notice]
+    end
+
+    service_mock.verify
   end
 
   test "fetch_blame handles missing blame info" do
@@ -376,6 +394,51 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
 
     assert_equal 0, error_data["occurrence_count"]
     assert_equal 0, error_data["affected_count"]
+  end
+
+  test "error_log_json affected count fallback takes max of users and emails" do
+    controller = MarcoButterflyNet::DashboardController.new
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "TestError",
+      message: "Test message"
+    )
+    # Create 2 occurrences with user_id
+    error_log.occurrences.create!(user_id: "user1")
+    error_log.occurrences.create!(user_id: "user2")
+    # Create 3 occurrences with user_email (one more than user_id)
+    error_log.occurrences.create!(user_email: "email1@example.com")
+    error_log.occurrences.create!(user_email: "email2@example.com")
+    error_log.occurrences.create!(user_email: "email3@example.com")
+
+    # Call error_log_json without the affected_count parameter to trigger fallback
+    result = controller.send(:error_log_json, error_log)
+
+    # Should return max(2, 3) = 3
+    assert_equal 3, result[:affected_count]
+  end
+
+  test "error_log_json affected count fallback handles user_id greater than user_email" do
+    controller = MarcoButterflyNet::DashboardController.new
+
+    error_log = MarcoButterflyNet::ErrorLog.create!(
+      exception_class: "TestError",
+      message: "Test message"
+    )
+    # Create 4 occurrences with user_id
+    error_log.occurrences.create!(user_id: "user1")
+    error_log.occurrences.create!(user_id: "user2")
+    error_log.occurrences.create!(user_id: "user3")
+    error_log.occurrences.create!(user_id: "user4")
+    # Create 2 occurrences with user_email (less than user_id)
+    error_log.occurrences.create!(user_email: "email1@example.com")
+    error_log.occurrences.create!(user_email: "email2@example.com")
+
+    # Call error_log_json without the affected_count parameter to trigger fallback
+    result = controller.send(:error_log_json, error_log)
+
+    # Should return max(4, 2) = 4
+    assert_equal 4, result[:affected_count]
   end
 
   test "show handles non-existent error log" do
