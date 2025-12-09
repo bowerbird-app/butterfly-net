@@ -368,20 +368,17 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "show handles non-existent error log" do
-    assert_raises(ActiveRecord::RecordNotFound) do
-      get marco_butterfly_net.dashboard_path(99999)
-    end
+    get marco_butterfly_net.dashboard_path(99999)
+    assert_response :not_found
   end
 
   test "fetch_blame handles non-existent error log" do
-    assert_raises(ActiveRecord::RecordNotFound) do
-      post marco_butterfly_net.fetch_blame_dashboard_path(99999)
-    end
+    post marco_butterfly_net.fetch_blame_dashboard_path(99999)
+    assert_response :not_found
   end
 
   test "create_issue handles non-existent error log" do
-    assert_raises(ActiveRecord::RecordNotFound) do
-      post marco_butterfly_net.create_issue_dashboard_path(99999)
-    end
+    post marco_butterfly_net.create_issue_dashboard_path(99999)
+    assert_response :not_found
   end
 end
