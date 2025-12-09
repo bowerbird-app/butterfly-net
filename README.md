@@ -36,9 +36,9 @@ bin/rails marco_butterfly_net:install:migrations
 bin/rails db:migrate
 ```
 
-## Upgrading from v0.3.0
+## Upgrading from v0.3.0 to v0.4.0
 
-If you're upgrading from v0.3.0 to a newer version with user tracking features, follow these steps:
+If you're upgrading from v0.3.0 to v0.4.0 with user tracking and error status features, follow these steps:
 
 ### 1. Run the New Migration (Required)
 
