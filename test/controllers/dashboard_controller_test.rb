@@ -380,6 +380,8 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "error_log_json affected count fallback takes max of users and emails" do
+    controller = MarcoButterflyNet::DashboardController.new
+    
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "TestError",
       message: "Test message"
@@ -392,17 +394,16 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
     error_log.occurrences.create!(user_email: "email2@example.com")
     error_log.occurrences.create!(user_email: "email3@example.com")
 
-    # Call index without providing affected_count (triggers fallback calculation)
-    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
-
-    assert_response :success
-    json_response = JSON.parse(response.body)
-    error_data = json_response["error_logs"].first
+    # Call error_log_json without the affected_count parameter to trigger fallback
+    result = controller.send(:error_log_json, error_log)
+    
     # Should return max(2, 3) = 3
-    assert_equal 3, error_data["affected_count"]
+    assert_equal 3, result[:affected_count]
   end
 
   test "error_log_json affected count fallback handles user_id greater than user_email" do
+    controller = MarcoButterflyNet::DashboardController.new
+    
     error_log = MarcoButterflyNet::ErrorLog.create!(
       exception_class: "TestError",
       message: "Test message"
@@ -416,14 +417,11 @@ class MarcoButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTe
     error_log.occurrences.create!(user_email: "email1@example.com")
     error_log.occurrences.create!(user_email: "email2@example.com")
 
-    # Call index without providing affected_count (triggers fallback calculation)
-    get marco_butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
-
-    assert_response :success
-    json_response = JSON.parse(response.body)
-    error_data = json_response["error_logs"].first
+    # Call error_log_json without the affected_count parameter to trigger fallback
+    result = controller.send(:error_log_json, error_log)
+    
     # Should return max(4, 2) = 4
-    assert_equal 4, error_data["affected_count"]
+    assert_equal 4, result[:affected_count]
   end
 
   test "show handles non-existent error log" do
