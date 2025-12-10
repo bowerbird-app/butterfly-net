@@ -10,6 +10,8 @@ gem "pg" # PostgreSQL adapter for devcontainer
 
 gem "propshaft"
 
+gem "makeup_artist", git: "https://github.com/bowerbird-app/makeup-artist.git", tag: "v0.3.7"
+
 # Code coverage
 gem "simplecov", require: false
 
