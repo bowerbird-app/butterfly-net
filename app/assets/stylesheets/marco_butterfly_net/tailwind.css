@@ -15,8 +15,4 @@
   .hidden {
     display: none !important;
   }
-  
-  .h-px {
-    height: 1px;
-  }
 }
