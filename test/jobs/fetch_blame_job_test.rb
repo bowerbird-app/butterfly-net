@@ -3,15 +3,15 @@
 require "test_helper"
 require "minitest/mock"
 
-class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
+class ButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
   setup do
-    MarcoButterflyNet::ErrorOccurrence.delete_all
-    MarcoButterflyNet::ErrorLog.delete_all
+    ButterflyNet::ErrorOccurrence.delete_all
+    ButterflyNet::ErrorLog.delete_all
   end
 
   test "successfully fetches blame info for an error log" do
     # Create error log with backtrace but no blame info
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       backtrace: "/app/models/user.rb:42:in `save'\n/app/controllers/users_controller.rb:10:in `create'"
@@ -28,7 +28,7 @@ class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
     )
 
     # Mock the GitBlame service to return a BlameResult
-    blame_result = MarcoButterflyNet::Services::GitBlame::BlameResult.new(
+    blame_result = ButterflyNet::Services::GitBlame::BlameResult.new(
       file: "app/models/user.rb",
       line_number: 42,
       commit_sha: "abc123",
@@ -41,9 +41,9 @@ class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
     service_mock = Minitest::Mock.new
     service_mock.expect(:blame_from_backtrace, blame_result, [ error_log.backtrace_lines ])
 
-    MarcoButterflyNet::Services::GitBlame.stub(:new, service_mock) do
+    ButterflyNet::Services::GitBlame.stub(:new, service_mock) do
       # Perform the job
-      MarcoButterflyNet::FetchBlameJob.perform_now(error_log.id)
+      ButterflyNet::FetchBlameJob.perform_now(error_log.id)
     end
 
     # Verify blame fields are populated
@@ -60,7 +60,7 @@ class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
 
   test "skips fetching if blame info already exists" do
     # Create error log with existing blame info
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       backtrace: "/app/models/user.rb:42:in `save'",
@@ -77,7 +77,7 @@ class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
     original_author = error_log.blame_author_name
 
     # Perform the job
-    MarcoButterflyNet::FetchBlameJob.perform_now(error_log.id)
+    ButterflyNet::FetchBlameJob.perform_now(error_log.id)
 
     # Verify blame info wasn't changed (job skipped)
     error_log.reload
@@ -91,13 +91,13 @@ class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
 
     # Should not raise any errors
     assert_nothing_raised do
-      MarcoButterflyNet::FetchBlameJob.perform_now(non_existent_id)
+      ButterflyNet::FetchBlameJob.perform_now(non_existent_id)
     end
   end
 
   test "handles git errors gracefully" do
     # Create error log with backtrace
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       backtrace: "/app/models/user.rb:42:in `save'"
@@ -109,16 +109,16 @@ class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
       raise StandardError, "Git command failed"
     end
 
-    MarcoButterflyNet::Services::GitBlame.stub(:new, service_mock) do
+    ButterflyNet::Services::GitBlame.stub(:new, service_mock) do
       # Should not raise any errors (error is caught and logged)
       assert_nothing_raised do
-        MarcoButterflyNet::FetchBlameJob.perform_now(error_log.id)
+        ButterflyNet::FetchBlameJob.perform_now(error_log.id)
       end
     end
   end
 
   test "handles nil backtrace gracefully" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       backtrace: nil
@@ -126,7 +126,7 @@ class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
 
     # Should not raise any errors
     assert_nothing_raised do
-      MarcoButterflyNet::FetchBlameJob.perform_now(error_log.id)
+      ButterflyNet::FetchBlameJob.perform_now(error_log.id)
     end
 
     # Verify no blame info was set
@@ -135,14 +135,14 @@ class MarcoButterflyNet::FetchBlameJobTest < ActiveJob::TestCase
   end
 
   test "can be enqueued" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       backtrace: "/app/models/user.rb:42:in `save'"
     )
 
-    assert_enqueued_with(job: MarcoButterflyNet::FetchBlameJob, args: [ error_log.id ]) do
-      MarcoButterflyNet::FetchBlameJob.perform_later(error_log.id)
+    assert_enqueued_with(job: ButterflyNet::FetchBlameJob, args: [ error_log.id ]) do
+      ButterflyNet::FetchBlameJob.perform_later(error_log.id)
     end
   end
 end

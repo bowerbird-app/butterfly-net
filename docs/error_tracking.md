@@ -1,6 +1,6 @@
 # Error Tracking Documentation
 
-This document explains how error tracking works in `MarcoButterflyNet`, specifically focusing on the `ErrorLog` and `ErrorOccurrence` models.
+This document explains how error tracking works in `ButterflyNet`, specifically focusing on the `ErrorLog` and `ErrorOccurrence` models.
 
 ## Overview
 
@@ -10,7 +10,7 @@ The error tracking system is designed to capture exceptions, group them by type,
 
 ### ErrorLog
 
-`MarcoButterflyNet::ErrorLog` is the primary model for storing captured exception data. Each record represents a unique exception type (defined by `exception_class` and `message`) that was caught during requests.
+`ButterflyNet::ErrorLog` is the primary model for storing captured exception data. Each record represents a unique exception type (defined by `exception_class` and `message`) that was caught during requests.
 
 **Key Features:**
 
@@ -38,7 +38,7 @@ The error tracking system is designed to capture exceptions, group them by type,
 
 ### ErrorOccurrence
 
-`MarcoButterflyNet::ErrorOccurrence` tracks individual instances of an error. It belongs to an `ErrorLog`.
+`ButterflyNet::ErrorOccurrence` tracks individual instances of an error. It belongs to an `ErrorLog`.
 
 **Key Features:**
 
@@ -57,7 +57,7 @@ The error tracking system is designed to capture exceptions, group them by type,
 When an exception is caught (e.g., in middleware), the system typically does the following:
 
 ```ruby
-MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+ButterflyNet::ErrorLog.find_or_create_with_occurrence(
   exception_class: exception.class.name,
   message: exception.message,
   backtrace: exception.backtrace.join("\n"),

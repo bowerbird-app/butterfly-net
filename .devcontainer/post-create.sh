@@ -2,7 +2,7 @@
 
 set -e
 
-echo "🚀 Setting up MarcoButterflyNet development environment..."
+echo "🚀 Setting up ButterflyNet development environment..."
 
 # Install Ruby dependencies
 echo "📦 Installing Ruby gems..."
@@ -11,14 +11,14 @@ bundle install
 # Set up the test dummy app database
 echo "🗄️  Setting up test database..."
 cd test/dummy
-bin/rails marco_butterfly_net:install:migrations
+bin/rails butterfly_net:install:migrations
 bin/rails db:migrate
 bin/rails db:seed
 cd ../..
 
 # Build Tailwind CSS
 echo "🎨 Building Tailwind CSS..."
-bundle exec rake app:marco_butterfly_net:tailwindcss:build
+bundle exec rake app:butterfly_net:tailwindcss:build
 
 # Start Tailwind watcher in background
 echo "👀 Starting Tailwind CSS watcher..."

@@ -2,32 +2,32 @@
 
 require "test_helper"
 
-class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
+class ButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
   setup do
     @repo_path = Rails.root.to_s
-    @service = MarcoButterflyNet::Services::GitBlame.new(repo_path: @repo_path)
-    MarcoButterflyNet.reset_configuration!
+    @service = ButterflyNet::Services::GitBlame.new(repo_path: @repo_path)
+    ButterflyNet.reset_configuration!
   end
 
   teardown do
-    MarcoButterflyNet.reset_configuration!
+    ButterflyNet.reset_configuration!
   end
 
   test "initializes with default repo path" do
-    service = MarcoButterflyNet::Services::GitBlame.new
+    service = ButterflyNet::Services::GitBlame.new
     assert_not_nil service.repo_path
   end
 
   test "initializes with custom repo path" do
-    service = MarcoButterflyNet::Services::GitBlame.new(repo_path: "/custom/path")
+    service = ButterflyNet::Services::GitBlame.new(repo_path: "/custom/path")
     assert_equal "/custom/path", service.repo_path
   end
 
   test "uses configured repo path when available" do
-    MarcoButterflyNet.configure do |config|
+    ButterflyNet.configure do |config|
       config.repo_path = "/configured/path"
     end
-    service = MarcoButterflyNet::Services::GitBlame.new
+    service = ButterflyNet::Services::GitBlame.new
     assert_equal "/configured/path", service.repo_path
   end
 
@@ -50,7 +50,7 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
 
     # Will only work if Gemfile is tracked by git
     if result
-      assert_instance_of MarcoButterflyNet::Services::GitBlame::BlameResult, result
+      assert_instance_of ButterflyNet::Services::GitBlame::BlameResult, result
       assert_equal "Gemfile", result.file
       assert_equal 1, result.line_number
       assert_not_nil result.commit_sha
@@ -85,7 +85,7 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
     assert_instance_of Array, results
     # Should only include results for files in the repo
     results.each do |result|
-      assert_instance_of MarcoButterflyNet::Services::GitBlame::BlameResult, result
+      assert_instance_of ButterflyNet::Services::GitBlame::BlameResult, result
     end
   end
 
@@ -95,7 +95,7 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
   end
 
   test "BlameResult struct has expected attributes" do
-    result = MarcoButterflyNet::Services::GitBlame::BlameResult.new(
+    result = ButterflyNet::Services::GitBlame::BlameResult.new(
       file: "test.rb",
       line_number: 42,
       commit_sha: "abc123",
@@ -115,7 +115,7 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
   end
 
   test "default_repo_path returns Rails.root when Rails is defined" do
-    service = MarcoButterflyNet::Services::GitBlame.new
+    service = ButterflyNet::Services::GitBlame.new
     # Should use Rails.root by default in test environment
     assert_equal Rails.root.to_s, service.repo_path
   end
@@ -256,7 +256,7 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
   end
 
   test "BlameResult can be created with minimal fields" do
-    result = MarcoButterflyNet::Services::GitBlame::BlameResult.new(
+    result = ButterflyNet::Services::GitBlame::BlameResult.new(
       file: "test.rb",
       line_number: 1,
       commit_sha: "abc",
@@ -278,7 +278,7 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
     ]
 
     valid_lines.each do |line|
-      match = line.match(MarcoButterflyNet::Services::GitBlame::BACKTRACE_LINE_REGEX)
+      match = line.match(ButterflyNet::Services::GitBlame::BACKTRACE_LINE_REGEX)
       assert_not_nil match, "Expected regex to match: #{line}"
     end
   end
@@ -292,7 +292,7 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
     ]
 
     invalid_lines.each do |line|
-      match = line.match(MarcoButterflyNet::Services::GitBlame::BACKTRACE_LINE_REGEX)
+      match = line.match(ButterflyNet::Services::GitBlame::BACKTRACE_LINE_REGEX)
       assert_nil match, "Expected regex not to match: #{line}"
     end
   end
@@ -312,7 +312,7 @@ class MarcoButterflyNet::Services::GitBlameTest < ActiveSupport::TestCase
 
   test "run_git_blame handles directory change errors" do
     # Use a service with an invalid repo path
-    service = MarcoButterflyNet::Services::GitBlame.new(repo_path: "/nonexistent/path")
+    service = ButterflyNet::Services::GitBlame.new(repo_path: "/nonexistent/path")
     result = service.send(:run_git_blame, "Gemfile", 1)
     assert_nil result
   end

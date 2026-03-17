@@ -1,5 +1,5 @@
 {
-  "name": "MarcoButterflyNet Rails Engine",
+  "name": "ButterflyNet Rails Engine",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",

@@ -2,15 +2,15 @@
 
 require "test_helper"
 
-class MarcoButterflyNet::ErrorOccurrenceTest < ActiveSupport::TestCase
+class ButterflyNet::ErrorOccurrenceTest < ActiveSupport::TestCase
   setup do
-    MarcoButterflyNet::ErrorOccurrence.delete_all
-    MarcoButterflyNet::ErrorLog.delete_all
+    ButterflyNet::ErrorOccurrence.delete_all
+    ButterflyNet::ErrorLog.delete_all
   end
 
   test "belongs to error_log" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    occurrence = MarcoButterflyNet::ErrorOccurrence.create!(
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    occurrence = ButterflyNet::ErrorOccurrence.create!(
       error_log: error_log,
       user_id: SecureRandom.uuid,
       user_email: "test@example.com"
@@ -20,10 +20,10 @@ class MarcoButterflyNet::ErrorOccurrenceTest < ActiveSupport::TestCase
   end
 
   test "stores user information" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
     user_id = SecureRandom.uuid
 
-    occurrence = MarcoButterflyNet::ErrorOccurrence.create!(
+    occurrence = ButterflyNet::ErrorOccurrence.create!(
       error_log: error_log,
       user_id: user_id,
       user_email: "test@example.com",
@@ -36,8 +36,8 @@ class MarcoButterflyNet::ErrorOccurrenceTest < ActiveSupport::TestCase
   end
 
   test "stores request_params" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    occurrence = MarcoButterflyNet::ErrorOccurrence.create!(
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    occurrence = ButterflyNet::ErrorOccurrence.create!(
       error_log: error_log,
       request_params: { path: "/test", method: "GET" }
     )
@@ -46,14 +46,14 @@ class MarcoButterflyNet::ErrorOccurrenceTest < ActiveSupport::TestCase
   end
 
   test "params_hash returns request_params or empty hash" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
-    occurrence_with_params = MarcoButterflyNet::ErrorOccurrence.new(
+    occurrence_with_params = ButterflyNet::ErrorOccurrence.new(
       error_log: error_log,
       request_params: { path: "/test" }
     )
 
-    occurrence_without_params = MarcoButterflyNet::ErrorOccurrence.new(
+    occurrence_without_params = ButterflyNet::ErrorOccurrence.new(
       error_log: error_log,
       request_params: nil
     )
@@ -63,56 +63,56 @@ class MarcoButterflyNet::ErrorOccurrenceTest < ActiveSupport::TestCase
   end
 
   test "recent scope orders by created_at desc" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
-    old_occurrence = MarcoButterflyNet::ErrorOccurrence.create!(
+    old_occurrence = ButterflyNet::ErrorOccurrence.create!(
       error_log: error_log,
       created_at: 1.day.ago
     )
 
-    new_occurrence = MarcoButterflyNet::ErrorOccurrence.create!(
+    new_occurrence = ButterflyNet::ErrorOccurrence.create!(
       error_log: error_log,
       created_at: Time.current
     )
 
-    recent = MarcoButterflyNet::ErrorOccurrence.recent
+    recent = ButterflyNet::ErrorOccurrence.recent
 
     assert_equal new_occurrence, recent.first
     assert_equal old_occurrence, recent.last
   end
 
   test "for_user scope filters by user_id" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
     user_id = SecureRandom.uuid
     other_user_id = SecureRandom.uuid
 
-    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_id: user_id)
-    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_id: other_user_id)
-    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_id: user_id)
+    ButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_id: user_id)
+    ButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_id: other_user_id)
+    ButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_id: user_id)
 
-    user_occurrences = MarcoButterflyNet::ErrorOccurrence.for_user(user_id)
+    user_occurrences = ButterflyNet::ErrorOccurrence.for_user(user_id)
 
     assert_equal 2, user_occurrences.count
     assert user_occurrences.all? { |o| o.user_id == user_id }
   end
 
   test "for_user_email scope filters by user_email" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
-    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_email: "user1@example.com")
-    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_email: "user2@example.com")
-    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_email: "user1@example.com")
+    ButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_email: "user1@example.com")
+    ButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_email: "user2@example.com")
+    ButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_email: "user1@example.com")
 
-    user_occurrences = MarcoButterflyNet::ErrorOccurrence.for_user_email("user1@example.com")
+    user_occurrences = ButterflyNet::ErrorOccurrence.for_user_email("user1@example.com")
 
     assert_equal 2, user_occurrences.count
     assert user_occurrences.all? { |o| o.user_email == "user1@example.com" }
   end
 
   test "tracks timestamp for each occurrence" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
-    occurrence = MarcoButterflyNet::ErrorOccurrence.create!(
+    occurrence = ButterflyNet::ErrorOccurrence.create!(
       error_log: error_log,
       user_id: SecureRandom.uuid
     )
@@ -122,37 +122,37 @@ class MarcoButterflyNet::ErrorOccurrenceTest < ActiveSupport::TestCase
   end
 
   test "can be created without user_id" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
-    occurrence = MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log)
+    occurrence = ButterflyNet::ErrorOccurrence.create!(error_log: error_log)
 
     assert occurrence.persisted?
     assert_nil occurrence.user_id
   end
 
   test "can be created without user_email" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
-    occurrence = MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log)
+    occurrence = ButterflyNet::ErrorOccurrence.create!(error_log: error_log)
 
     assert occurrence.persisted?
     assert_nil occurrence.user_email
   end
 
   test "for_user returns empty when user_id is nil" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_id: "user1")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    ButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_id: "user1")
 
-    user_occurrences = MarcoButterflyNet::ErrorOccurrence.for_user(nil)
+    user_occurrences = ButterflyNet::ErrorOccurrence.for_user(nil)
 
     assert_equal 0, user_occurrences.count
   end
 
   test "for_user_email returns empty when email is nil" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    MarcoButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_email: "user@example.com")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    ButterflyNet::ErrorOccurrence.create!(error_log: error_log, user_email: "user@example.com")
 
-    user_occurrences = MarcoButterflyNet::ErrorOccurrence.for_user_email(nil)
+    user_occurrences = ButterflyNet::ErrorOccurrence.for_user_email(nil)
 
     assert_equal 0, user_occurrences.count
   end

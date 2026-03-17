@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>ButterflyNet - Error Tracking Dashboard</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+
+  <%= yield :head %>
+
+  <%= stylesheet_link_tag "butterfly_net/application", media: "all" %>
+  <%= stylesheet_link_tag "butterfly_net/vendor/apexcharts", media: "all" %>
+  <%= javascript_include_tag "butterfly_net/vendor/apexcharts.min", defer: true %>
+  <%= javascript_include_tag "butterfly_net/infinite_scroll", defer: true %>
+</head>
+<body class="font-sans text-sm leading-normal text-gray-800 bg-gray-100 m-0 p-0">
+  <div class="max-w-7xl mx-auto p-5">
+    <%= yield %>
+  </div>
+</body>
+</html>

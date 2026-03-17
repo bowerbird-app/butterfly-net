@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    marco_butterfly_net (0.4.0)
+    butterfly_net (0.4.0)
       faraday-retry
       octokit (~> 10.0)
       pagy (~> 9.0)
@@ -319,7 +319,7 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
-  marco_butterfly_net!
+  butterfly_net!
   pg
   propshaft
   puma

@@ -10,12 +10,12 @@ require "digest"
 
 # Configuration
 WATCH_PATHS = [
-  "app/views/marco_butterfly_net/**/*.html.erb",
-  "app/helpers/marco_butterfly_net/**/*.rb",
-  "app/assets/stylesheets/marco_butterfly_net/tailwind.css"
+  "app/views/butterfly_net/**/*.html.erb",
+  "app/helpers/butterfly_net/**/*.rb",
+  "app/assets/stylesheets/butterfly_net/tailwind.css"
 ].freeze
 
-BUILD_COMMAND = "bundle exec rake app:marco_butterfly_net:tailwindcss:build"
+BUILD_COMMAND = "bundle exec rake app:butterfly_net:tailwindcss:build"
 CHECK_INTERVAL = 1 # seconds
 
 # Track file checksums

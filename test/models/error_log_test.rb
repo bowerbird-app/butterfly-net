@@ -2,16 +2,16 @@
 
 require "test_helper"
 
-class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
+class ButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
   setup do
-    MarcoButterflyNet::ErrorOccurrence.delete_all
-    MarcoButterflyNet::ErrorLog.delete_all
+    ButterflyNet::ErrorOccurrence.delete_all
+    ButterflyNet::ErrorLog.delete_all
   end
 
   test "creates error log with required fields" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error message",
       backtrace: "line 1\nline 2\nline 3",
@@ -26,7 +26,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "requires exception_class" do
-    error_log = MarcoButterflyNet::ErrorLog.new(
+    error_log = ButterflyNet::ErrorLog.new(
       message: "Test error"
     )
 
@@ -35,7 +35,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "backtrace_lines returns array from text" do
-    error_log = MarcoButterflyNet::ErrorLog.new(
+    error_log = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       backtrace: "line 1\nline 2\nline 3"
     )
@@ -44,7 +44,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "backtrace_lines returns empty array when backtrace is nil" do
-    error_log = MarcoButterflyNet::ErrorLog.new(
+    error_log = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       backtrace: nil
     )
@@ -53,12 +53,12 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "params_hash returns request_params or empty hash" do
-    error_log_with_params = MarcoButterflyNet::ErrorLog.new(
+    error_log_with_params = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       request_params: { path: "/test" }
     )
 
-    error_log_without_params = MarcoButterflyNet::ErrorLog.new(
+    error_log_without_params = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       request_params: nil
     )
@@ -68,28 +68,28 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "recent scope orders by created_at desc" do
-    old_error = MarcoButterflyNet::ErrorLog.create!(
+    old_error = ButterflyNet::ErrorLog.create!(
       exception_class: "OldError",
       created_at: 1.day.ago
     )
 
-    new_error = MarcoButterflyNet::ErrorLog.create!(
+    new_error = ButterflyNet::ErrorLog.create!(
       exception_class: "NewError",
       created_at: Time.current
     )
 
-    recent_errors = MarcoButterflyNet::ErrorLog.recent
+    recent_errors = ButterflyNet::ErrorLog.recent
 
     assert_equal new_error, recent_errors.first
     assert_equal old_error, recent_errors.last
   end
 
   test "by_exception_class scope filters by class" do
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "NoMethodError")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    ButterflyNet::ErrorLog.create!(exception_class: "NoMethodError")
+    ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
-    runtime_errors = MarcoButterflyNet::ErrorLog.by_exception_class("RuntimeError")
+    runtime_errors = ButterflyNet::ErrorLog.by_exception_class("RuntimeError")
 
     assert_equal 2, runtime_errors.count
     assert runtime_errors.all? { |e| e.exception_class == "RuntimeError" }
@@ -97,13 +97,13 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
   # Tests for occurrence tracking
   test "new error log has occurrence_count of 0" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
     assert_equal 0, error_log.occurrence_count
   end
 
   test "record_occurrence creates an occurrence" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
     user_id = SecureRandom.uuid
 
     occurrence = error_log.record_occurrence(user_id: user_id, user_email: "test@example.com")
@@ -115,20 +115,20 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "repeated? returns false for no occurrences" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
     assert_not error_log.repeated?
   end
 
   test "repeated? returns false for single occurrence" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
     error_log.record_occurrence
 
     assert_not error_log.repeated?
   end
 
   test "repeated? returns true for multiple occurrences" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
     error_log.record_occurrence
     error_log.record_occurrence
 
@@ -136,14 +136,14 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "repeated scope filters errors with more than one occurrence" do
-    single = MarcoButterflyNet::ErrorLog.create!(exception_class: "SingleError")
+    single = ButterflyNet::ErrorLog.create!(exception_class: "SingleError")
     single.record_occurrence
 
-    repeated = MarcoButterflyNet::ErrorLog.create!(exception_class: "RepeatedError")
+    repeated = ButterflyNet::ErrorLog.create!(exception_class: "RepeatedError")
     repeated.record_occurrence
     repeated.record_occurrence
 
-    repeated_errors = MarcoButterflyNet::ErrorLog.repeated
+    repeated_errors = ButterflyNet::ErrorLog.repeated
 
     assert_equal 1, repeated_errors.count
     assert_equal "RepeatedError", repeated_errors.first.exception_class
@@ -153,14 +153,14 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     user1_id = SecureRandom.uuid
     user2_id = SecureRandom.uuid
 
-    error1 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    error1 = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "SameError",
       message: "Same message",
       user_id: user1_id,
       user_email: "user1@example.com"
     )
 
-    error2 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    error2 = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "SameError",
       message: "Same message",
       user_id: user2_id,
@@ -169,36 +169,36 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
     # Same error log for both users
     assert_equal error1.id, error2.id
-    assert_equal 1, MarcoButterflyNet::ErrorLog.count
+    assert_equal 1, ButterflyNet::ErrorLog.count
     assert_equal 2, error1.occurrence_count
     assert_equal 2, error1.occurrences.count
 
     # But occurrences are separate
-    assert_equal 2, MarcoButterflyNet::ErrorOccurrence.count
+    assert_equal 2, ButterflyNet::ErrorOccurrence.count
     assert error1.occurrences.exists?(user_id: user1_id)
     assert error1.occurrences.exists?(user_id: user2_id)
   end
 
   test "find_or_create_with_occurrence creates new error for different exception" do
-    error1 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    error1 = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "Error1",
       message: "Message 1"
     )
 
-    error2 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    error2 = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "Error2",
       message: "Message 2"
     )
 
     assert_not_equal error1.id, error2.id
-    assert_equal 2, MarcoButterflyNet::ErrorLog.count
+    assert_equal 2, ButterflyNet::ErrorLog.count
   end
 
   test "occurrences_for_user returns only that users occurrences" do
     user1_id = SecureRandom.uuid
     user2_id = SecureRandom.uuid
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
     error_log.record_occurrence(user_id: user1_id)
     error_log.record_occurrence(user_id: user1_id)
     error_log.record_occurrence(user_id: user2_id)
@@ -213,7 +213,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     user1_id = SecureRandom.uuid
     user2_id = SecureRandom.uuid
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
     error_log.record_occurrence(user_id: user1_id)
     error_log.record_occurrence(user_id: user1_id)
     error_log.record_occurrence(user_id: user2_id)
@@ -226,13 +226,13 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     user_id = SecureRandom.uuid
     other_user_id = SecureRandom.uuid
 
-    error1 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1")
+    error1 = ButterflyNet::ErrorLog.create!(exception_class: "Error1")
     error1.record_occurrence(user_id: user_id)
 
-    error2 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+    error2 = ButterflyNet::ErrorLog.create!(exception_class: "Error2")
     error2.record_occurrence(user_id: other_user_id)
 
-    user_errors = MarcoButterflyNet::ErrorLog.affecting_user(user_id)
+    user_errors = ButterflyNet::ErrorLog.affecting_user(user_id)
 
     assert_equal 1, user_errors.count
     assert_equal "Error1", user_errors.first.exception_class
@@ -240,18 +240,18 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
   # Tests for status tracking
   test "new error log has status of 'open' by default" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
     assert_equal "open", error_log.status
   end
 
   test "with_status scope filters by status" do
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "OpenError", status: "open")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "ResolvedError", status: "resolved")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "InProgressError", status: "in_progress")
+    ButterflyNet::ErrorLog.create!(exception_class: "OpenError", status: "open")
+    ButterflyNet::ErrorLog.create!(exception_class: "ResolvedError", status: "resolved")
+    ButterflyNet::ErrorLog.create!(exception_class: "InProgressError", status: "in_progress")
 
-    open_errors = MarcoButterflyNet::ErrorLog.with_status("open")
-    resolved_errors = MarcoButterflyNet::ErrorLog.with_status("resolved")
+    open_errors = ButterflyNet::ErrorLog.with_status("open")
+    resolved_errors = ButterflyNet::ErrorLog.with_status("resolved")
 
     assert_equal 1, open_errors.count
     assert_equal "OpenError", open_errors.first.exception_class
@@ -260,27 +260,27 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "open scope filters open errors" do
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "OpenError", status: "open")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "ResolvedError", status: "resolved")
+    ButterflyNet::ErrorLog.create!(exception_class: "OpenError", status: "open")
+    ButterflyNet::ErrorLog.create!(exception_class: "ResolvedError", status: "resolved")
 
-    open_errors = MarcoButterflyNet::ErrorLog.open
+    open_errors = ButterflyNet::ErrorLog.open
 
     assert_equal 1, open_errors.count
     assert_equal "OpenError", open_errors.first.exception_class
   end
 
   test "resolved scope filters resolved errors" do
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "OpenError", status: "open")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "ResolvedError", status: "resolved")
+    ButterflyNet::ErrorLog.create!(exception_class: "OpenError", status: "open")
+    ButterflyNet::ErrorLog.create!(exception_class: "ResolvedError", status: "resolved")
 
-    resolved_errors = MarcoButterflyNet::ErrorLog.resolved
+    resolved_errors = ButterflyNet::ErrorLog.resolved
 
     assert_equal 1, resolved_errors.count
     assert_equal "ResolvedError", resolved_errors.first.exception_class
   end
 
   test "validates status is in STATUSES" do
-    error_log = MarcoButterflyNet::ErrorLog.new(
+    error_log = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       status: "invalid_status"
     )
@@ -290,8 +290,8 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "allows valid statuses" do
-    MarcoButterflyNet::ErrorLog::STATUSES.each do |status|
-      error_log = MarcoButterflyNet::ErrorLog.new(
+    ButterflyNet::ErrorLog::STATUSES.each do |status|
+      error_log = ButterflyNet::ErrorLog.new(
         exception_class: "RuntimeError",
         status: status
       )
@@ -302,8 +302,8 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
   # Tests for automatic blame fetching
   test "creating an error log with backtrace enqueues a FetchBlameJob" do
-    assert_enqueued_with(job: MarcoButterflyNet::FetchBlameJob) do
-      error_log = MarcoButterflyNet::ErrorLog.create!(
+    assert_enqueued_with(job: ButterflyNet::FetchBlameJob) do
+      error_log = ButterflyNet::ErrorLog.create!(
         exception_class: "RuntimeError",
         message: "Test error",
         backtrace: "/app/models/user.rb:42:in `save'"
@@ -312,8 +312,8 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "creating an error log without backtrace does NOT enqueue a job" do
-    assert_no_enqueued_jobs(only: MarcoButterflyNet::FetchBlameJob) do
-      MarcoButterflyNet::ErrorLog.create!(
+    assert_no_enqueued_jobs(only: ButterflyNet::FetchBlameJob) do
+      ButterflyNet::ErrorLog.create!(
         exception_class: "RuntimeError",
         message: "Test error",
         backtrace: nil
@@ -322,8 +322,8 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "creating an error log that already has blame info does NOT enqueue a job" do
-    assert_no_enqueued_jobs(only: MarcoButterflyNet::FetchBlameJob) do
-      MarcoButterflyNet::ErrorLog.create!(
+    assert_no_enqueued_jobs(only: ButterflyNet::FetchBlameJob) do
+      ButterflyNet::ErrorLog.create!(
         exception_class: "RuntimeError",
         message: "Test error",
         backtrace: "/app/models/user.rb:42:in `save'",
@@ -338,25 +338,25 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "updating an existing error log does NOT enqueue a job" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Original message"
     )
 
-    assert_no_enqueued_jobs(only: MarcoButterflyNet::FetchBlameJob) do
+    assert_no_enqueued_jobs(only: ButterflyNet::FetchBlameJob) do
       error_log.update!(message: "Updated message")
     end
   end
 
   # Tests for GitHub issue tracking
   test "has_github_issue? returns false when no issue" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
     assert_not error_log.has_github_issue?
   end
 
   test "has_github_issue? returns true when issue exists" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       github_issue_number: 123,
       github_issue_url: "https://github.com/owner/repo/issues/123"
@@ -366,39 +366,39 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "with_github_issue scope filters errors with issues" do
-    with_issue = MarcoButterflyNet::ErrorLog.create!(
+    with_issue = ButterflyNet::ErrorLog.create!(
       exception_class: "Error1",
       github_issue_number: 123
     )
-    without_issue = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+    without_issue = ButterflyNet::ErrorLog.create!(exception_class: "Error2")
 
-    errors_with_issues = MarcoButterflyNet::ErrorLog.with_github_issue
+    errors_with_issues = ButterflyNet::ErrorLog.with_github_issue
 
     assert_equal 1, errors_with_issues.count
     assert_equal with_issue.id, errors_with_issues.first.id
   end
 
   test "without_github_issue scope filters errors without issues" do
-    with_issue = MarcoButterflyNet::ErrorLog.create!(
+    with_issue = ButterflyNet::ErrorLog.create!(
       exception_class: "Error1",
       github_issue_number: 123
     )
-    without_issue = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+    without_issue = ButterflyNet::ErrorLog.create!(exception_class: "Error2")
 
-    errors_without_issues = MarcoButterflyNet::ErrorLog.without_github_issue
+    errors_without_issues = ButterflyNet::ErrorLog.without_github_issue
 
     assert_equal 1, errors_without_issues.count
     assert_equal without_issue.id, errors_without_issues.first.id
   end
 
   test "has_blame_info? returns false when no blame info" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
     assert_not error_log.has_blame_info?
   end
 
   test "has_blame_info? returns true when blame info exists" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       blame_file: "app/models/user.rb",
       blame_commit_sha: "abc123"
@@ -409,7 +409,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
   # Tests for resolved_at callback
   test "changing status to resolved sets resolved_at" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       status: "open"
     )
@@ -423,7 +423,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "changing status from resolved clears resolved_at" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       status: "resolved"
     )
@@ -435,7 +435,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "updating resolved error without changing status keeps resolved_at" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       status: "resolved"
     )
@@ -452,13 +452,13 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     email = "user@example.com"
     other_email = "other@example.com"
 
-    error1 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1")
+    error1 = ButterflyNet::ErrorLog.create!(exception_class: "Error1")
     error1.record_occurrence(user_email: email)
 
-    error2 = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2")
+    error2 = ButterflyNet::ErrorLog.create!(exception_class: "Error2")
     error2.record_occurrence(user_email: other_email)
 
-    email_errors = MarcoButterflyNet::ErrorLog.affecting_user_email(email)
+    email_errors = ButterflyNet::ErrorLog.affecting_user_email(email)
 
     assert_equal 1, email_errors.count
     assert_equal "Error1", email_errors.first.exception_class
@@ -468,7 +468,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     email = "user@example.com"
     other_email = "other@example.com"
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
     error_log.record_occurrence(user_email: email)
     error_log.record_occurrence(user_email: email)
     error_log.record_occurrence(user_email: other_email)
@@ -481,7 +481,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
   # Tests for create_github_issue
   test "create_github_issue returns existing issue if already created" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       github_issue_number: 456,
       github_issue_url: "https://github.com/owner/repo/issues/456"
@@ -496,14 +496,14 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
 
   # Tests for find_or_create_with_occurrence updating existing records
   test "find_or_create_with_occurrence updates request_params when missing" do
-    error_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    error_log = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "TestError",
       message: "Test message"
     )
 
     assert_nil error_log.request_params
 
-    updated_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    updated_log = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "TestError",
       message: "Test message",
       request_params: { path: "/test", method: "GET" }
@@ -515,14 +515,14 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "find_or_create_with_occurrence updates user_agent when missing" do
-    error_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    error_log = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "TestError",
       message: "Test message"
     )
 
     assert_nil error_log.user_agent
 
-    updated_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    updated_log = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "TestError",
       message: "Test message",
       user_agent: "Mozilla/5.0"
@@ -534,13 +534,13 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "find_or_create_with_occurrence does not overwrite existing request_params" do
-    error_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    error_log = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "TestError",
       message: "Test message",
       request_params: { path: "/original" }
     )
 
-    updated_log = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    updated_log = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: "TestError",
       message: "Test message",
       request_params: { path: "/new" }
@@ -551,7 +551,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "fetch_blame_info handles errors gracefully" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       backtrace: "/nonexistent/file.rb:1:in `method'"
@@ -563,7 +563,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "fetch_blame_info with force parameter refetches even with existing data" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       backtrace: "#{Rails.root}/Gemfile:1:in `<top>'",
@@ -580,13 +580,13 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "create_github_issue handles service errors gracefully" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
 
     # Mock service to raise error
-    MarcoButterflyNet::Services::GitHubIssueCreator.stub :new, -> {
+    ButterflyNet::Services::GitHubIssueCreator.stub :new, -> {
       service = Object.new
       def service.create_issue_for_error(*args)
         raise StandardError, "Service error"
@@ -601,7 +601,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "backtrace_lines handles Windows-style line endings" do
-    error_log = MarcoButterflyNet::ErrorLog.new(
+    error_log = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       backtrace: "line1\r\nline2\r\nline3"
     )
@@ -612,7 +612,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "record_occurrence handles nil user tracking fields" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
     occurrence = error_log.record_occurrence(
       user_id: nil,
@@ -628,7 +628,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     user_id = SecureRandom.uuid
     email = "user@example.com"
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RuntimeError")
 
     # User with only ID
     error_log.record_occurrence(user_id: user_id, user_email: nil)
@@ -642,8 +642,8 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "status validation allows all valid statuses" do
-    MarcoButterflyNet::ErrorLog::STATUSES.each do |status|
-      error_log = MarcoButterflyNet::ErrorLog.create!(
+    ButterflyNet::ErrorLog::STATUSES.each do |status|
+      error_log = ButterflyNet::ErrorLog.create!(
         exception_class: "TestError",
         message: "Test",
         status: status
@@ -653,7 +653,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "status defaults to open" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test"
     )
@@ -662,7 +662,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "set_resolved_at does not change resolved_at when status stays resolved" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test",
       status: "resolved"
@@ -678,7 +678,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "existing_blame_result returns nil when no blame info" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test"
     )
@@ -688,7 +688,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "existing_blame_result returns BlameResult when blame info exists" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test",
       blame_file: "app/models/user.rb",
@@ -702,14 +702,14 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     result = error_log.send(:existing_blame_result)
 
     assert_not_nil result
-    assert_instance_of MarcoButterflyNet::Services::GitBlame::BlameResult, result
+    assert_instance_of ButterflyNet::Services::GitBlame::BlameResult, result
     assert_equal "app/models/user.rb", result.file
     assert_equal 42, result.line_number
     assert_equal "abc123", result.commit_sha
   end
 
   test "should_auto_fetch_blame? returns false when no backtrace" do
-    error_log = MarcoButterflyNet::ErrorLog.new(
+    error_log = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       message: "Test",
       backtrace: nil
@@ -719,7 +719,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "should_auto_fetch_blame? returns false when already has blame info" do
-    error_log = MarcoButterflyNet::ErrorLog.new(
+    error_log = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       message: "Test",
       backtrace: "line1",
@@ -731,7 +731,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "should_auto_fetch_blame? returns true when has backtrace but no blame info" do
-    error_log = MarcoButterflyNet::ErrorLog.new(
+    error_log = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       message: "Test",
       backtrace: "line1"
@@ -741,7 +741,7 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "params_hash handles symbolized keys" do
-    error_log = MarcoButterflyNet::ErrorLog.new(
+    error_log = ButterflyNet::ErrorLog.new(
       exception_class: "RuntimeError",
       request_params: { path: "/test", method: "GET" }
     )
@@ -752,14 +752,14 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   end
 
   test "repeated scope excludes errors with no occurrences" do
-    no_occurrence = MarcoButterflyNet::ErrorLog.create!(exception_class: "NoOccurrence")
-    one_occurrence = MarcoButterflyNet::ErrorLog.create!(exception_class: "OneOccurrence")
+    no_occurrence = ButterflyNet::ErrorLog.create!(exception_class: "NoOccurrence")
+    one_occurrence = ButterflyNet::ErrorLog.create!(exception_class: "OneOccurrence")
     one_occurrence.record_occurrence
-    repeated = MarcoButterflyNet::ErrorLog.create!(exception_class: "Repeated")
+    repeated = ButterflyNet::ErrorLog.create!(exception_class: "Repeated")
     repeated.record_occurrence
     repeated.record_occurrence
 
-    repeated_errors = MarcoButterflyNet::ErrorLog.repeated
+    repeated_errors = ButterflyNet::ErrorLog.repeated
 
     assert_equal 1, repeated_errors.count
     assert_equal repeated.id, repeated_errors.first.id
@@ -771,14 +771,14 @@ class MarcoButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     message = "Concurrent message"
 
     # First creation
-    error1 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    error1 = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: exception_class,
       message: message,
       user_id: "user1"
     )
 
     # Second creation (simulating concurrent request)
-    error2 = MarcoButterflyNet::ErrorLog.find_or_create_with_occurrence(
+    error2 = ButterflyNet::ErrorLog.find_or_create_with_occurrence(
       exception_class: exception_class,
       message: message,
       user_id: "user2"

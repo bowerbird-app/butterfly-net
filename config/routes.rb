@@ -1,4 +1,4 @@
-MarcoButterflyNet::Engine.routes.draw do
+ButterflyNet::Engine.routes.draw do
   resources :dashboard, only: [ :index, :show ] do
     member do
       post :fetch_blame
