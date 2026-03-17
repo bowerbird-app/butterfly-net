@@ -3,9 +3,9 @@
 require "test_helper"
 
 # Ensure the Analytics service is loaded
-require_relative "../../lib/marco_butterfly_net/services/analytics"
+require_relative "../../lib/butterfly_net/services/analytics"
 
-module MarcoButterflyNet
+module ButterflyNet
   module Services
     class AnalyticsTest < ActiveSupport::TestCase
       setup do

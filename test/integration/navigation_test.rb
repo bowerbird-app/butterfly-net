@@ -4,13 +4,13 @@ require "test_helper"
 
 class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
   setup do
-    MarcoButterflyNet.clear_captured_exceptions
-    MarcoButterflyNet::ErrorOccurrence.delete_all
-    MarcoButterflyNet::ErrorLog.delete_all
+    ButterflyNet.clear_captured_exceptions
+    ButterflyNet::ErrorOccurrence.delete_all
+    ButterflyNet::ErrorLog.delete_all
   end
 
   teardown do
-    MarcoButterflyNet.clear_captured_exceptions
+    ButterflyNet.clear_captured_exceptions
   end
 
   test "captures NameError from controller" do
@@ -18,8 +18,8 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
       get "/test/name_error"
     end
 
-    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
-    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal 1, ButterflyNet.captured_exceptions.length
+    captured = ButterflyNet.captured_exceptions.first
     assert_equal NameError, captured[:exception].class
     assert_includes captured[:exception].message, "SomeUndefinedConstant"
   end
@@ -29,8 +29,8 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
       get "/test/no_method_error"
     end
 
-    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
-    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal 1, ButterflyNet.captured_exceptions.length
+    captured = ButterflyNet.captured_exceptions.first
     assert_equal NoMethodError, captured[:exception].class
   end
 
@@ -39,8 +39,8 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
       get "/test/argument_error"
     end
 
-    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
-    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal 1, ButterflyNet.captured_exceptions.length
+    captured = ButterflyNet.captured_exceptions.first
     assert_equal ArgumentError, captured[:exception].class
   end
 
@@ -49,8 +49,8 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
       get "/test/type_error"
     end
 
-    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
-    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal 1, ButterflyNet.captured_exceptions.length
+    captured = ButterflyNet.captured_exceptions.first
     assert_equal TypeError, captured[:exception].class
   end
 
@@ -59,8 +59,8 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
       get "/test/runtime_error"
     end
 
-    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
-    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal 1, ButterflyNet.captured_exceptions.length
+    captured = ButterflyNet.captured_exceptions.first
     assert_equal RuntimeError, captured[:exception].class
   end
 
@@ -68,7 +68,7 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     get "/test/success"
 
     assert_response :success
-    assert_equal 0, MarcoButterflyNet.captured_exceptions.length
+    assert_equal 0, ButterflyNet.captured_exceptions.length
   end
 
   test "persists error to database" do
@@ -76,8 +76,8 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
       get "/test/name_error"
     end
 
-    assert_equal 1, MarcoButterflyNet::ErrorLog.count
-    error_log = MarcoButterflyNet::ErrorLog.last
+    assert_equal 1, ButterflyNet::ErrorLog.count
+    error_log = ButterflyNet::ErrorLog.last
     assert_equal "NameError", error_log.exception_class
     assert_includes error_log.message, "SomeUndefinedConstant"
     assert_not_nil error_log.backtrace
@@ -94,8 +94,8 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     end
 
     # Verify the exception was captured by the middleware
-    assert_equal 1, MarcoButterflyNet.captured_exceptions.length
-    captured = MarcoButterflyNet.captured_exceptions.first
+    assert_equal 1, ButterflyNet.captured_exceptions.length
+    captured = ButterflyNet.captured_exceptions.first
 
     # Verify it has the env context from the request
     assert_not_nil captured[:env]
@@ -103,8 +103,8 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     assert_equal "/test/runtime_error", captured[:env]["PATH_INFO"]
 
     # Verify it was persisted to the database
-    assert_equal 1, MarcoButterflyNet::ErrorLog.count
-    error_log = MarcoButterflyNet::ErrorLog.last
+    assert_equal 1, ButterflyNet::ErrorLog.count
+    error_log = ButterflyNet::ErrorLog.last
     assert_equal "RuntimeError", error_log.exception_class
   end
 
@@ -119,14 +119,14 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     end
 
     # Verify the exception was captured (either by middleware or interceptor)
-    assert MarcoButterflyNet.captured_exceptions.any?,
+    assert ButterflyNet.captured_exceptions.any?,
       "Exception should have been captured by middleware or DebugExceptions interceptor"
 
-    captured = MarcoButterflyNet.captured_exceptions.first
+    captured = ButterflyNet.captured_exceptions.first
     assert_equal NameError, captured[:exception].class
 
     # Verify persistence happened
-    assert MarcoButterflyNet::ErrorLog.where(exception_class: "NameError").any?,
+    assert ButterflyNet::ErrorLog.where(exception_class: "NameError").any?,
       "Exception should have been persisted to database"
   end
 end

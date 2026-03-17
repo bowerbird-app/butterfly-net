@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 After updating to this version, run the new migration:
 
 ```bash
-bin/rails marco_butterfly_net:install:migrations
+bin/rails butterfly_net:install:migrations
 bin/rails db:migrate
 ```
 

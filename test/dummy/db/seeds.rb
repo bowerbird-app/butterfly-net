@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Seed file for MarcoButterflyNet test/demo data
+# Seed file for ButterflyNet test/demo data
 #
 # This file creates sample error logs and occurrences to demonstrate all features:
 # - Multiple error types (NoMethodError, ActiveRecord::RecordNotFound, etc.)
@@ -10,18 +10,18 @@
 # - GitHub issue integration
 #
 # To use in your own app:
-#   1. Copy this file: cp $(bundle show marco_butterfly_net)/test/dummy/db/seeds.rb db/marco_butterfly_net_seeds.rb
-#   2. Run it: bin/rails runner db/marco_butterfly_net_seeds.rb
+#   1. Copy this file: cp $(bundle show butterfly_net)/test/dummy/db/seeds.rb db/butterfly_net_seeds.rb
+#   2. Run it: bin/rails runner db/butterfly_net_seeds.rb
 
 # This file should ensure the existence of records required to run the application in every environment (production,
 # development, test). The code here should be idempotent so that it can be executed at any point in every environment.
 # The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
 
-puts "Seeding test data for MarcoButterflyNet..."
+puts "Seeding test data for ButterflyNet..."
 
 # Clear existing data
-MarcoButterflyNet::ErrorOccurrence.delete_all
-MarcoButterflyNet::ErrorLog.delete_all
+ButterflyNet::ErrorOccurrence.delete_all
+ButterflyNet::ErrorLog.delete_all
 
 # Sample data for variety
 exception_classes = [
@@ -115,7 +115,7 @@ errors = []
     {}
   end
 
-  errors << MarcoButterflyNet::ErrorLog.create!(
+  errors << ButterflyNet::ErrorLog.create!(
     exception_class: exception_class,
     message: messages.sample,
     backtrace: "/app/controllers/#{controller}_controller.rb:#{rand(1..100)}:in `#{action}'\n/app/controllers/application_controller.rb:#{rand(1..50)}:in `process_action'\n/gems/actionpack-8.1.0/lib/action_controller/metal/basic_implicit_render.rb:8:in `send_action'",
@@ -125,7 +125,7 @@ errors = []
   )
 end
 
-puts "Created #{MarcoButterflyNet::ErrorLog.count} error logs"
+puts "Created #{ButterflyNet::ErrorLog.count} error logs"
 
 # Create multiple occurrences for each error to simulate real usage
 users = [
@@ -212,20 +212,20 @@ errors.each_with_index do |error, index|
   end
 end
 
-puts "Created #{MarcoButterflyNet::ErrorOccurrence.count} error occurrences"
+puts "Created #{ButterflyNet::ErrorOccurrence.count} error occurrences"
 
 
 # Print summary
 puts "\n=== Summary ==="
-puts "Total Errors: #{MarcoButterflyNet::ErrorLog.count}"
-puts "  - Open: #{MarcoButterflyNet::ErrorLog.open.count}"
-puts "  - In Progress: #{MarcoButterflyNet::ErrorLog.with_status('in_progress').count}"
-puts "  - Resolved: #{MarcoButterflyNet::ErrorLog.resolved.count}"
-puts "  - Dismissed: #{MarcoButterflyNet::ErrorLog.with_status('dismissed').count}"
-puts "\nTotal Occurrences: #{MarcoButterflyNet::ErrorOccurrence.count}"
-puts "Repeated Errors: #{MarcoButterflyNet::ErrorLog.repeated.count}"
+puts "Total Errors: #{ButterflyNet::ErrorLog.count}"
+puts "  - Open: #{ButterflyNet::ErrorLog.open.count}"
+puts "  - In Progress: #{ButterflyNet::ErrorLog.with_status('in_progress').count}"
+puts "  - Resolved: #{ButterflyNet::ErrorLog.resolved.count}"
+puts "  - Dismissed: #{ButterflyNet::ErrorLog.with_status('dismissed').count}"
+puts "\nTotal Occurrences: #{ButterflyNet::ErrorOccurrence.count}"
+puts "Repeated Errors: #{ButterflyNet::ErrorLog.repeated.count}"
 puts "\nErrors by exception class:"
-MarcoButterflyNet::ErrorLog.group(:exception_class).count.each do |exception_class, count|
+ButterflyNet::ErrorLog.group(:exception_class).count.each do |exception_class, count|
   puts "  - #{exception_class}: #{count}"
 end
 

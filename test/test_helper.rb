@@ -14,8 +14,8 @@ if ENV["COVERAGE"]
     add_group "Controllers", "app/controllers"
     add_group "Models", "app/models"
     add_group "Jobs", "app/jobs"
-    add_group "Services", "lib/marco_butterfly_net/services"
-    add_group "Middleware", "lib/marco_butterfly_net/middleware"
+    add_group "Services", "lib/butterfly_net/services"
+    add_group "Middleware", "lib/butterfly_net/middleware"
   end
 end
 
@@ -28,7 +28,7 @@ require "rails/test_help"
 # are loaded and tracked by SimpleCov. The main file will require all its dependencies.
 # Using require_relative instead of relying on autoloading ensures consistent code
 # loading and better coverage tracking.
-require_relative "../lib/marco_butterfly_net"
+require_relative "../lib/butterfly_net"
 
 # Load fixtures from the engine
 if ActiveSupport::TestCase.respond_to?(:fixture_paths=)

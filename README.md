@@ -1,6 +1,6 @@
-# MarcoButterflyNet
+# ButterflyNet
 
-MarcoButterflyNet is a self-hosted error tracking dashboard for Rails applications. It's built as a mountable Rails engine that uses Rack middleware to intercept exceptions from the entire Rails stack.
+ButterflyNet is a self-hosted error tracking dashboard for Rails applications. It's built as a mountable Rails engine that uses Rack middleware to intercept exceptions from the entire Rails stack.
 
 ## Features
 
@@ -20,7 +20,7 @@ MarcoButterflyNet is a self-hosted error tracking dashboard for Rails applicatio
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "marco_butterfly_net"
+gem "butterfly_net"
 ```
 
 And then execute:
@@ -32,7 +32,7 @@ bundle install
 Run the migration to create the error logs table:
 
 ```bash
-bin/rails marco_butterfly_net:install:migrations
+bin/rails butterfly_net:install:migrations
 bin/rails db:migrate
 ```
 
@@ -43,7 +43,7 @@ If you're upgrading from v0.3.0 to v0.4.0 with user tracking and error status fe
 ### 1. Run the New Migration (Required)
 
 ```bash
-bin/rails marco_butterfly_net:install:migrations
+bin/rails butterfly_net:install:migrations
 bin/rails db:migrate
 ```
 
@@ -89,10 +89,10 @@ To quickly test the dashboard with sample error data, you can use the seed file 
 
 ```bash
 # Copy the seed file to your app
-cp $(bundle show marco_butterfly_net)/test/dummy/db/seeds.rb db/marco_butterfly_net_seeds.rb
+cp $(bundle show butterfly_net)/test/dummy/db/seeds.rb db/butterfly_net_seeds.rb
 
 # Run it
-bin/rails runner db/marco_butterfly_net_seeds.rb
+bin/rails runner db/butterfly_net_seeds.rb
 ```
 
 This will create:
@@ -108,7 +108,7 @@ Mount the engine in your `config/routes.rb`:
 
 ```ruby
 Rails.application.routes.draw do
-  mount MarcoButterflyNet::Engine, at: "/errors"
+  mount ButterflyNet::Engine, at: "/errors"
 end
 ```
 
@@ -126,7 +126,7 @@ If you're using Devise, wrap the mount in an `authenticate` block:
 Rails.application.routes.draw do
   # Only authenticated admins can access the error dashboard
   authenticate :user, ->(user) { user.admin? } do
-    mount MarcoButterflyNet::Engine, at: "/errors"
+    mount ButterflyNet::Engine, at: "/errors"
   end
 end
 ```
@@ -137,7 +137,7 @@ For simple protection, you can use HTTP Basic Auth:
 
 ```ruby
 Rails.application.routes.draw do
-  mount MarcoButterflyNet::Engine, at: "/errors", constraints: ->(request) {
+  mount ButterflyNet::Engine, at: "/errors", constraints: ->(request) {
     Rack::Auth::Basic::Request.new(request.env).credentials == ['admin', 'secret']
   }
 end
@@ -159,7 +159,7 @@ end
 # config/routes.rb
 Rails.application.routes.draw do
   constraints AdminConstraint.new do
-    mount MarcoButterflyNet::Engine, at: "/errors"
+    mount ButterflyNet::Engine, at: "/errors"
   end
 end
 ```
@@ -171,7 +171,7 @@ For additional security, restrict access to internal networks:
 ```ruby
 Rails.application.routes.draw do
   constraints ->(request) { ['127.0.0.1', '::1'].include?(request.remote_ip) } do
-    mount MarcoButterflyNet::Engine, at: "/errors"
+    mount ButterflyNet::Engine, at: "/errors"
   end
 end
 ```
@@ -180,7 +180,7 @@ end
 
 The engine creates two main tables to track errors and their occurrences:
 
-### Error Logs Table (`marco_butterfly_net_error_logs`)
+### Error Logs Table (`butterfly_net_error_logs`)
 
 Stores unique error types with their metadata:
 
@@ -201,13 +201,13 @@ Stores unique error types with their metadata:
 | `created_at` | datetime | When the error type was first seen |
 | `updated_at` | datetime | When the error was last updated |
 
-### Error Occurrences Table (`marco_butterfly_net_error_occurrences`)
+### Error Occurrences Table (`butterfly_net_error_occurrences`)
 
 Tracks individual instances of each error type with user context:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `error_log_id` | bigint | Foreign key to `marco_butterfly_net_error_logs` |
+| `error_log_id` | bigint | Foreign key to `butterfly_net_error_logs` |
 | `user_id` | string | The ID of the user who encountered the error (if available) |
 | `user_email` | string | The email of the user who encountered the error (if available) |
 | `request_params` | json | Request details (path, method, query string, params) |
@@ -225,26 +225,26 @@ This separation allows you to:
 
 ### Mountable Engine
 
-MarcoButterflyNet is built as a mountable Rails engine using `--mountable`, providing:
+ButterflyNet is built as a mountable Rails engine using `--mountable`, providing:
 - Isolated routes scoped under a mount point
 - Namespaced controllers, models, and views
 - Separate asset pipeline
 
 ### Namespace Isolation
 
-The engine uses `isolate_namespace MarcoButterflyNet` to prevent naming conflicts with the host application's code.
+The engine uses `isolate_namespace ButterflyNet` to prevent naming conflicts with the host application's code.
 
 ### Exception Catching
 
-MarcoButterflyNet catches exceptions through two complementary mechanisms:
+ButterflyNet catches exceptions through two complementary mechanisms:
 
 #### 1. Rack Middleware
 
-The `MarcoButterflyNet::Middleware::ExceptionCatcher` is inserted at the top of the middleware stack to intercept exceptions that propagate up:
+The `ButterflyNet::Middleware::ExceptionCatcher` is inserted at the top of the middleware stack to intercept exceptions that propagate up:
 
 ```ruby
 # Automatically configured by the engine
-app.middleware.insert_before(0, MarcoButterflyNet::Middleware::ExceptionCatcher)
+app.middleware.insert_before(0, ButterflyNet::Middleware::ExceptionCatcher)
 ```
 
 #### 2. DebugExceptions Interceptor
@@ -254,7 +254,7 @@ Rails' `ActionDispatch::DebugExceptions` middleware renders error pages without 
 ```ruby
 # Automatically configured by the engine
 ActionDispatch::DebugExceptions.register_interceptor do |request, exception|
-  MarcoButterflyNet::Middleware::ExceptionCatcher.handle_intercepted_exception(exception, request.env)
+  ButterflyNet::Middleware::ExceptionCatcher.handle_intercepted_exception(exception, request.env)
 end
 ```
 
@@ -267,7 +267,7 @@ Together, these mechanisms ensure all exceptions are caught from the entire requ
 
 ## Git Blame Integration
 
-MarcoButterflyNet can identify who introduced the code that caused an error by using `git blame`. From the error dashboard, you can fetch blame information for any error, which will show:
+ButterflyNet can identify who introduced the code that caused an error by using `git blame`. From the error dashboard, you can fetch blame information for any error, which will show:
 
 - The file and line number where the error originated
 - The commit SHA that introduced the code
@@ -296,7 +296,7 @@ You can still manually fetch blame information for existing errors using the `fe
 To enable git blame functionality, ensure your application has access to the git repository. By default, the engine uses `Rails.root` as the repository path. You can customize this in your initializer:
 
 ```ruby
-MarcoButterflyNet.configure do |config|
+ButterflyNet.configure do |config|
   # Optional: Path to the git repository (defaults to Rails.root)
   config.repo_path = Rails.root.to_s
 end
@@ -304,7 +304,7 @@ end
 
 ## User Tracking and Error Occurrences
 
-MarcoButterflyNet tracks each occurrence of an error separately, allowing you to:
+ButterflyNet tracks each occurrence of an error separately, allowing you to:
 
 - See how many times an error has occurred
 - Track which users are affected by each error
@@ -347,16 +347,16 @@ The `ErrorLog` model provides scopes for filtering by user:
 
 ```ruby
 # Find all errors affecting a specific user
-MarcoButterflyNet::ErrorLog.affecting_user(user_id)
+ButterflyNet::ErrorLog.affecting_user(user_id)
 
 # Find all errors affecting a specific email
-MarcoButterflyNet::ErrorLog.affecting_user_email("user@example.com")
+ButterflyNet::ErrorLog.affecting_user_email("user@example.com")
 
 # Find repeated errors (more than one occurrence)
-MarcoButterflyNet::ErrorLog.repeated
+ButterflyNet::ErrorLog.repeated
 
 # Get occurrence count and affected users for an error
-error_log = MarcoButterflyNet::ErrorLog.find(123)
+error_log = ButterflyNet::ErrorLog.find(123)
 error_log.occurrence_count       # => 42
 error_log.affected_users_count   # => 15
 ```
@@ -374,25 +374,25 @@ Each error can be tracked through its lifecycle with status values:
 
 ```ruby
 # Filter errors by status
-MarcoButterflyNet::ErrorLog.open
-MarcoButterflyNet::ErrorLog.resolved
-MarcoButterflyNet::ErrorLog.with_status("in_progress")
+ButterflyNet::ErrorLog.open
+ButterflyNet::ErrorLog.resolved
+ButterflyNet::ErrorLog.with_status("in_progress")
 
 # Update error status
-error_log = MarcoButterflyNet::ErrorLog.find(123)
+error_log = ButterflyNet::ErrorLog.find(123)
 error_log.update(status: "resolved")
 ```
 
 ## GitHub Issue Integration
 
-MarcoButterflyNet can create GitHub issues directly from the error dashboard using the [Octokit](https://github.com/octokit/octokit.rb) gem.
+ButterflyNet can create GitHub issues directly from the error dashboard using the [Octokit](https://github.com/octokit/octokit.rb) gem.
 
 ### Configuration
 
-Add the following to an initializer (e.g., `config/initializers/marco_butterfly_net.rb`):
+Add the following to an initializer (e.g., `config/initializers/butterfly_net.rb`):
 
 ```ruby
-MarcoButterflyNet.configure do |config|
+ButterflyNet.configure do |config|
   # Required: GitHub personal access token with repo scope
   config.github_access_token = ENV["GITHUB_TOKEN"]
   
@@ -427,7 +427,7 @@ When creating a GitHub issue from an error:
 
 ## Styling with Tailwind CSS
 
-MarcoButterflyNet uses [Tailwind CSS v4](https://tailwindcss.com/) for styling via the [tailwindcss-ruby](https://github.com/rails/tailwindcss-ruby) gem. The styles are pre-compiled and included in the gem, so you don't need to configure anything for normal use.
+ButterflyNet uses [Tailwind CSS v4](https://tailwindcss.com/) for styling via the [tailwindcss-ruby](https://github.com/rails/tailwindcss-ruby) gem. The styles are pre-compiled and included in the gem, so you don't need to configure anything for normal use.
 
 ### For Gem Developers
 
@@ -439,16 +439,16 @@ The gem includes rake tasks for building Tailwind CSS:
 
 ```bash
 # Build CSS (minified)
-bundle exec rake app:marco_butterfly_net:tailwindcss:build
+bundle exec rake app:butterfly_net:tailwindcss:build
 
 # Watch mode for development
-bundle exec rake app:marco_butterfly_net:tailwindcss:watch
+bundle exec rake app:butterfly_net:tailwindcss:watch
 ```
 
 #### Source Files
 
-- **Input**: `app/assets/stylesheets/marco_butterfly_net/tailwind.css` - Tailwind directives and source configuration
-- **Output**: `app/assets/stylesheets/marco_butterfly_net/application.css` - Compiled CSS (committed to the repo)
+- **Input**: `app/assets/stylesheets/butterfly_net/tailwind.css` - Tailwind directives and source configuration
+- **Output**: `app/assets/stylesheets/butterfly_net/application.css` - Compiled CSS (committed to the repo)
 
 #### Tailwind Configuration
 
@@ -457,29 +457,29 @@ Tailwind CSS v4 uses CSS-based configuration. The source paths are configured in
 ```css
 @import "tailwindcss";
 
-@source "../../../views/marco_butterfly_net/**/*.html.erb";
-@source "../../../helpers/marco_butterfly_net/**/*.rb";
-@source "../../../controllers/marco_butterfly_net/**/*.rb";
+@source "../../../views/butterfly_net/**/*.html.erb";
+@source "../../../helpers/butterfly_net/**/*.rb";
+@source "../../../controllers/butterfly_net/**/*.rb";
 ```
 
 ### Style Isolation
 
 The dashboard uses standard Tailwind utility classes. The styles are loaded via the engine's layout file and are scoped to the engine's views only. This means:
 
-- MarcoButterflyNet styles won't interfere with your host application's styles
+- ButterflyNet styles won't interfere with your host application's styles
 - Your application's Tailwind setup (if any) operates independently
 - The engine uses its own compiled CSS bundle
 
 ### Host Application Considerations
 
-No configuration is needed in your host application. The gem's stylesheet is automatically served via Propshaft when you mount the engine. The stylesheet is referenced using `stylesheet_link_tag "marco_butterfly_net/application"` in the engine's layout.
+No configuration is needed in your host application. The gem's stylesheet is automatically served via Propshaft when you mount the engine. The stylesheet is referenced using `stylesheet_link_tag "butterfly_net/application"` in the engine's layout.
 
 ## Terminal Command
 
 This engine was generated with:
 
 ```bash
-rails plugin new marco_butterfly_net --mountable
+rails plugin new butterfly_net --mountable
 ```
 
 ## License

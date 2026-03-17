@@ -54,17 +54,17 @@ We start SimpleCov in **both** locations to ensure coverage tracking begins befo
 The test_helper explicitly requires the main gem file using `require_relative` after Rails loads:
 
 ```ruby
-require_relative "../lib/marco_butterfly_net"
+require_relative "../lib/butterfly_net"
 ```
 
-The main gem file (`lib/marco_butterfly_net.rb`) then requires all its dependencies:
-- `marco_butterfly_net/version`
-- `marco_butterfly_net/engine`
-- `marco_butterfly_net/configuration`
-- `marco_butterfly_net/middleware/exception_catcher`
-- `marco_butterfly_net/services/git_blame`
-- `marco_butterfly_net/services/github_issue_creator`
-- `marco_butterfly_net/services/analytics`
+The main gem file (`lib/butterfly_net.rb`) then requires all its dependencies:
+- `butterfly_net/version`
+- `butterfly_net/engine`
+- `butterfly_net/configuration`
+- `butterfly_net/middleware/exception_catcher`
+- `butterfly_net/services/git_blame`
+- `butterfly_net/services/github_issue_creator`
+- `butterfly_net/services/analytics`
 
 This ensures:
 - Consistent code loading behavior
@@ -81,7 +81,7 @@ To verify SimpleCov is tracking lib files correctly:
 COVERAGE=true bundle exec rake app:test
 ```
 
-Check the coverage report - all files in `lib/marco_butterfly_net/` should show coverage percentages > 0% (except version.rb which only contains a constant).
+Check the coverage report - all files in `lib/butterfly_net/` should show coverage percentages > 0% (except version.rb which only contains a constant).
 
 Expected output:
 ```

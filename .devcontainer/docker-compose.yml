@@ -7,7 +7,7 @@ services:
       - ../..:/workspaces:cached
       - bundle:/usr/local/bundle
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/marco_butterfly_net_test
+      DATABASE_URL: postgres://postgres:postgres@db:5432/butterfly_net_test
       REDIS_URL: redis://redis:6379/0
     ports:
       - "3000:3000"
@@ -26,7 +26,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: marco_butterfly_net_test
+      POSTGRES_DB: butterfly_net_test
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s

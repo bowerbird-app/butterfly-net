@@ -3,24 +3,24 @@
 require "test_helper"
 require "ostruct"
 
-class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestCase
+class ButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestCase
   setup do
-    MarcoButterflyNet.reset_configuration!
-    MarcoButterflyNet::ErrorOccurrence.delete_all
-    MarcoButterflyNet::ErrorLog.delete_all
+    ButterflyNet.reset_configuration!
+    ButterflyNet::ErrorOccurrence.delete_all
+    ButterflyNet::ErrorLog.delete_all
   end
 
   teardown do
-    MarcoButterflyNet.reset_configuration!
+    ButterflyNet.reset_configuration!
   end
 
   test "initializes with default configuration" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new
+    service = ButterflyNet::Services::GitHubIssueCreator.new
     assert_not service.configured?
   end
 
   test "initializes with custom configuration" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "test_token",
       repo: "owner/repo"
     )
@@ -29,19 +29,19 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "uses global configuration when available" do
-    MarcoButterflyNet.configure do |config|
+    ButterflyNet.configure do |config|
       config.github_access_token = "configured_token"
       config.github_repo_owner = "configured_owner"
       config.github_repo_name = "configured_repo"
     end
 
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new
+    service = ButterflyNet::Services::GitHubIssueCreator.new
     assert service.configured?
     assert_equal "configured_owner/configured_repo", service.repo
   end
 
   test "configured? returns false when access token is missing" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: nil,
       repo: "owner/repo"
     )
@@ -49,7 +49,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "configured? returns false when repo is missing" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: nil
     )
@@ -57,12 +57,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "create_issue_for_error returns error when client not configured" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
 
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new
+    service = ButterflyNet::Services::GitHubIssueCreator.new
     result = service.create_issue_for_error(error_log)
 
     assert_not result.success
@@ -70,11 +70,11 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "create_issue_for_error returns error when repo not configured" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: nil
     )
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -86,7 +86,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "IssueResult struct has expected attributes" do
-    result = MarcoButterflyNet::Services::GitHubIssueCreator::IssueResult.new(
+    result = ButterflyNet::Services::GitHubIssueCreator::IssueResult.new(
       success: true,
       issue_number: 123,
       issue_url: "https://github.com/owner/repo/issues/123",
@@ -100,13 +100,13 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_issue_title truncates long messages" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
     long_message = "a" * 200
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: long_message
     )
@@ -119,12 +119,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_issue_body includes error details" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "StandardError",
       message: "Test error message",
       backtrace: "line1\nline2\nline3"
@@ -139,17 +139,17 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_issue_body includes blame information when provided" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
 
-    blame_result = MarcoButterflyNet::Services::GitBlame::BlameResult.new(
+    blame_result = ButterflyNet::Services::GitBlame::BlameResult.new(
       file: "app/controllers/test_controller.rb",
       line_number: 42,
       commit_sha: "abc123def456",
@@ -169,12 +169,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_issue_body includes request details when present" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       request_params: { path: "/api/users", method: "POST" },
@@ -190,13 +190,13 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_issue_body limits backtrace to 30 lines" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
     backtrace_lines = (1..50).map { |i| "line #{i}" }
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       backtrace: backtrace_lines.join("\n")
@@ -208,12 +208,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_labels includes default labels" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -225,12 +225,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_labels merges additional labels" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -244,12 +244,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_labels removes duplicates" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -261,7 +261,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "create_client creates Octokit client" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "test_token",
       repo: "owner/repo"
     )
@@ -271,12 +271,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_issue_title handles nil message" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: nil
     )
@@ -287,12 +287,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_issue_body handles empty backtrace" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       backtrace: ""
@@ -305,12 +305,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_issue_body handles nil request_params" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error",
       request_params: nil
@@ -323,21 +323,21 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
   test "configured? returns true only when all required fields present" do
     # All present
-    service1 = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service1 = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
     assert service1.configured?
 
     # Missing token
-    service2 = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service2 = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "",
       repo: "owner/repo"
     )
     assert_not service2.configured?
 
     # Missing repo
-    service3 = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service3 = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: ""
     )
@@ -345,7 +345,7 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "repo returns properly formatted string" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
@@ -354,12 +354,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "build_labels handles empty additional_labels" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -373,12 +373,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
   # GitHub API failure tests
   test "create_issue_for_error handles Octokit::Unauthorized error" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "invalid_token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -400,12 +400,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "create_issue_for_error handles Octokit::Forbidden error" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -425,12 +425,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "create_issue_for_error handles Octokit::NotFound error" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "nonexistent/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -450,12 +450,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "create_issue_for_error handles Octokit::TooManyRequests (rate limiting)" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -475,12 +475,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "create_issue_for_error handles Octokit::ServerError" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -500,12 +500,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "create_issue_for_error handles network timeout" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -524,12 +524,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
   end
 
   test "create_issue_for_error handles connection failed error" do
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -549,12 +549,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
   test "create_issue_for_error handles invalid GitHub token format" do
     # Create service with clearly invalid token format
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "not-a-valid-token-format",
       repo: "owner/repo"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )
@@ -574,12 +574,12 @@ class MarcoButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestC
 
   test "create_issue_for_error with malformed repo format" do
     # Test with repo that doesn't have owner/name format
-    service = MarcoButterflyNet::Services::GitHubIssueCreator.new(
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
       access_token: "token",
       repo: "invalid-repo-format"
     )
 
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "RuntimeError",
       message: "Test error"
     )

@@ -2,22 +2,22 @@
 
 require "test_helper"
 
-class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTest
+class ButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    MarcoButterflyNet::ErrorOccurrence.delete_all
-    MarcoButterflyNet::ErrorLog.delete_all
+    ButterflyNet::ErrorOccurrence.delete_all
+    ButterflyNet::ErrorLog.delete_all
   end
 
   test "summary returns JSON with all KPI metrics" do
     # Create test data
-    error_log = MarcoButterflyNet::ErrorLog.create!(
+    error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "TestError",
       message: "test message",
       status: "open"
     )
     error_log.occurrences.create!(user_id: "user1", created_at: Time.current)
 
-    get marco_butterfly_net.analytics_summary_path, headers: { "Accept" => "application/json" }
+    get butterfly_net.analytics_summary_path, headers: { "Accept" => "application/json" }
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -30,11 +30,11 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "summary returns correct open error count" do
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1", message: "msg1", status: "open")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2", message: "msg2", status: "open")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "Error3", message: "msg3", status: "resolved")
+    ButterflyNet::ErrorLog.create!(exception_class: "Error1", message: "msg1", status: "open")
+    ButterflyNet::ErrorLog.create!(exception_class: "Error2", message: "msg2", status: "open")
+    ButterflyNet::ErrorLog.create!(exception_class: "Error3", message: "msg3", status: "resolved")
 
-    get marco_butterfly_net.analytics_summary_path
+    get butterfly_net.analytics_summary_path
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -43,10 +43,10 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "summary returns status breakdown" do
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "Error1", message: "msg1", status: "open")
-    MarcoButterflyNet::ErrorLog.create!(exception_class: "Error2", message: "msg2", status: "in_progress")
+    ButterflyNet::ErrorLog.create!(exception_class: "Error1", message: "msg1", status: "open")
+    ButterflyNet::ErrorLog.create!(exception_class: "Error2", message: "msg2", status: "in_progress")
 
-    get marco_butterfly_net.analytics_summary_path
+    get butterfly_net.analytics_summary_path
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -59,13 +59,13 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "top_errors returns JSON with top errors" do
-    error1 = MarcoButterflyNet::ErrorLog.create!(exception_class: "FrequentError", message: "msg1")
-    error2 = MarcoButterflyNet::ErrorLog.create!(exception_class: "RareError", message: "msg2")
+    error1 = ButterflyNet::ErrorLog.create!(exception_class: "FrequentError", message: "msg1")
+    error2 = ButterflyNet::ErrorLog.create!(exception_class: "RareError", message: "msg2")
 
     5.times { error1.occurrences.create! }
     2.times { error2.occurrences.create! }
 
-    get marco_butterfly_net.analytics_top_errors_path
+    get butterfly_net.analytics_top_errors_path
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -78,11 +78,11 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
 
   test "top_errors respects limit parameter" do
     5.times do |i|
-      error = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error#{i}", message: "msg#{i}")
+      error = ButterflyNet::ErrorLog.create!(exception_class: "Error#{i}", message: "msg#{i}")
       (i + 1).times { error.occurrences.create! }
     end
 
-    get marco_butterfly_net.analytics_top_errors_path(limit: 3)
+    get butterfly_net.analytics_top_errors_path(limit: 3)
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -91,10 +91,10 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "time_series returns JSON with all time series data" do
-    error_log = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error", message: "msg")
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "Error", message: "msg")
     error_log.occurrences.create!(user_id: "user1")
 
-    get marco_butterfly_net.analytics_time_series_path
+    get butterfly_net.analytics_time_series_path
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -105,7 +105,7 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "time_series returns correct data structure" do
-    get marco_butterfly_net.analytics_time_series_path(days: 7)
+    get butterfly_net.analytics_time_series_path(days: 7)
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -123,7 +123,7 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "time_series respects days parameter" do
-    get marco_butterfly_net.analytics_time_series_path(days: 14)
+    get butterfly_net.analytics_time_series_path(days: 14)
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -134,7 +134,7 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "summary handles empty database gracefully" do
-    get marco_butterfly_net.analytics_summary_path
+    get butterfly_net.analytics_summary_path
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -146,7 +146,7 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "top_errors handles empty database gracefully" do
-    get marco_butterfly_net.analytics_top_errors_path
+    get butterfly_net.analytics_top_errors_path
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -155,7 +155,7 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "time_series handles empty database gracefully" do
-    get marco_butterfly_net.analytics_time_series_path(days: 7)
+    get butterfly_net.analytics_time_series_path(days: 7)
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -168,10 +168,10 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "top_errors handles invalid limit parameter" do
-    error = MarcoButterflyNet::ErrorLog.create!(exception_class: "Error", message: "msg")
+    error = ButterflyNet::ErrorLog.create!(exception_class: "Error", message: "msg")
     error.occurrences.create!
 
-    get marco_butterfly_net.analytics_top_errors_path(limit: "invalid")
+    get butterfly_net.analytics_top_errors_path(limit: "invalid")
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -181,7 +181,7 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "time_series handles invalid days parameter" do
-    get marco_butterfly_net.analytics_time_series_path(days: "invalid")
+    get butterfly_net.analytics_time_series_path(days: "invalid")
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -192,7 +192,7 @@ class MarcoButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTe
   end
 
   test "time_series handles zero days parameter" do
-    get marco_butterfly_net.analytics_time_series_path(days: 0)
+    get butterfly_net.analytics_time_series_path(days: 0)
 
     assert_response :success
     json_response = JSON.parse(response.body)

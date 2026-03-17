@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in marco_butterfly_net.gemspec.
+# Specify your gem's dependencies in butterfly_net.gemspec.
 gemspec
 
 gem "puma"

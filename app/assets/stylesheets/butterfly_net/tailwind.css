@@ -1,0 +1,18 @@
+/*
+ * ButterflyNet Dashboard Styles - Tailwind CSS v4
+ * Compiled via tailwindcss-ruby gem
+ */
+
+/* Tailwind CSS v4 imports */
+@import "tailwindcss";
+
+/* Configure source paths for the engine */
+@source "../../../views/butterfly_net/**/*.html.erb";
+@source "../../../helpers/butterfly_net/**/*.rb";
+@source "../../../controllers/butterfly_net/**/*.rb";
+
+@layer utilities {
+  .hidden {
+    display: none !important;
+  }
+}
