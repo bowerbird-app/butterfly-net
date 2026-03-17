@@ -1,7 +1,8 @@
 FROM mcr.microsoft.com/devcontainers/ruby:1-3.3-bullseye
 
-# Install PostgreSQL client
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+# Remove stale Yarn repo whose GPG key is no longer valid, then install packages
+RUN rm -f /etc/apt/sources.list.d/yarn.list \
+    && apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends postgresql-client \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
