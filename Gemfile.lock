@@ -1,12 +1,24 @@
+GIT
+  remote: https://github.com/bowerbird-app/flatpack.git
+  revision: cec8ed7c47e835805402b0832d9cb2489dc1ee13
+  specs:
+    flat_pack (0.1.5)
+      pagy (~> 9.0)
+      rails (~> 8.0)
+      tailwind_merge (~> 0.13)
+      view_component (~> 3.0)
+
 PATH
   remote: .
   specs:
     butterfly_net (0.4.0)
       faraday-retry
+      flat_pack (>= 0.1.5)
       octokit (~> 10.0)
       pagy (~> 9.0)
       rails (>= 8.1.1)
       tailwindcss-ruby (~> 4.0)
+      view_component (~> 3.0)
 
 GEM
   remote: https://rubygems.org/
@@ -130,6 +142,7 @@ GEM
       net-pop
       net-smtp
     marcel (1.1.0)
+    method_source (1.1.0)
     mini_mime (1.1.5)
     minitest (5.26.2)
     net-http (0.8.0)
@@ -276,6 +289,7 @@ GEM
       simplecov_json_formatter (~> 0.1)
     simplecov-html (0.13.2)
     simplecov_json_formatter (0.1.4)
+    sin_lru_redux (2.5.2)
     sqlite3 (2.8.0-aarch64-linux-gnu)
     sqlite3 (2.8.0-aarch64-linux-musl)
     sqlite3 (2.8.0-arm-linux-gnu)
@@ -285,6 +299,8 @@ GEM
     sqlite3 (2.8.0-x86_64-linux-gnu)
     sqlite3 (2.8.0-x86_64-linux-musl)
     stringio (3.1.8)
+    tailwind_merge (0.16.0)
+      sin_lru_redux (~> 2.5)
     tailwindcss-ruby (4.1.16)
     tailwindcss-ruby (4.1.16-aarch64-linux-gnu)
     tailwindcss-ruby (4.1.16-aarch64-linux-musl)
@@ -302,6 +318,10 @@ GEM
     unicode-emoji (4.1.0)
     uri (1.1.1)
     useragent (0.16.11)
+    view_component (3.24.0)
+      activesupport (>= 5.2.0, < 8.2)
+      concurrent-ruby (~> 1)
+      method_source (~> 1.0)
     websocket-driver (0.8.0)
       base64
       websocket-extensions (>= 0.1.0)
@@ -320,6 +340,7 @@ PLATFORMS
 
 DEPENDENCIES
   butterfly_net!
+  flat_pack!
   pg
   propshaft
   puma

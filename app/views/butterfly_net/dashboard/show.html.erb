@@ -3,36 +3,42 @@
     <div class="px-4 sm:px-6 lg:px-8">
       <div class="sm:flex sm:items-center sm:justify-between">
         <div class="sm:flex-auto">
-          <h1 class="text-base font-semibold text-gray-900">Error Details</h1>
+          <%= render FlatPack::PageTitle::Component.new(title: "Error Details") %>
         </div>
         <div class="mt-3 sm:ml-4 sm:mt-0">
-          <%= link_to "← Back to Dashboard", dashboard_index_path, class: "inline-flex items-center rounded bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
+          <%= render FlatPack::Button::Component.new(
+            text: "← Back to Dashboard",
+            style: :default,
+            url: dashboard_index_path
+          ) %>
         </div>
       </div>
 
       <% if flash[:notice] %>
-        <div class="mt-8 rounded-md bg-green-50 p-4 ring-1 ring-green-600/10">
-          <div class="flex">
-            <div class="ml-3">
-              <p class="text-sm font-medium text-green-800"><%= flash[:notice] %></p>
-            </div>
-          </div>
+        <div class="mt-8">
+          <%= render FlatPack::Alert::Component.new(
+            description: flash[:notice],
+            style: :success,
+            dismissible: true
+          ) %>
         </div>
       <% end %>
       <% if flash[:alert] %>
-        <div class="mt-8 rounded-md bg-red-50 p-4 ring-1 ring-red-600/10">
-          <div class="flex">
-            <div class="ml-3">
-              <p class="text-sm font-medium text-red-800"><%= flash[:alert] %></p>
-            </div>
-          </div>
+        <div class="mt-8">
+          <%= render FlatPack::Alert::Component.new(
+            description: flash[:alert],
+            style: :danger,
+            dismissible: true
+          ) %>
         </div>
       <% end %>
 
       <div class="mt-8 space-y-6">
-        <div class="overflow-hidden bg-white shadow ring-1 ring-gray-200 ring-opacity-5 sm:rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-5">Exception Information</h2>
+        <%= render FlatPack::Card::Component.new(style: :outlined) do |card| %>
+          <% card.header do %>
+            <h2 class="text-base font-semibold text-gray-900">Exception Information</h2>
+          <% end %>
+          <% card.body do %>
             <dl class="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
                 <dt class="text-sm font-medium text-gray-500">ID</dt>
@@ -51,12 +57,14 @@
                 <dd class="mt-1 text-lg font-semibold tracking-tight text-gray-900"><%= @error_log.created_at.strftime("%Y-%m-%d %H:%M:%S %Z") %></dd>
               </div>
             </dl>
-          </div>
-        </div>
+          <% end %>
+        <% end %>
 
-        <div class="overflow-hidden bg-white shadow ring-1 ring-gray-200 ring-opacity-5 sm:rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-5">Git Blame Information</h2>
+        <%= render FlatPack::Card::Component.new(style: :outlined) do |card| %>
+          <% card.header do %>
+            <h2 class="text-base font-semibold text-gray-900">Git Blame Information</h2>
+          <% end %>
+          <% card.body do %>
             <% if @error_log.has_blame_info? %>
               <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
                 <div>
@@ -81,20 +89,34 @@
                 </div>
               </dl>
               <div class="mt-5">
-                <%= button_to "Refresh Blame Info", fetch_blame_dashboard_path(@error_log, force: true), method: :post, class: "inline-flex items-center rounded bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
+                <%= form_with url: fetch_blame_dashboard_path(@error_log, force: true), method: :post do %>
+                  <%= render FlatPack::Button::Component.new(
+                    text: "Refresh Blame Info",
+                    style: :default,
+                    type: "submit"
+                  ) %>
+                <% end %>
               </div>
             <% else %>
               <p class="text-sm text-gray-500 italic">No git blame information available.</p>
               <div class="mt-5">
-                <%= button_to "Fetch Git Blame", fetch_blame_dashboard_path(@error_log), method: :post, class: "inline-flex items-center rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" %>
+                <%= form_with url: fetch_blame_dashboard_path(@error_log), method: :post do %>
+                  <%= render FlatPack::Button::Component.new(
+                    text: "Fetch Git Blame",
+                    style: :primary,
+                    type: "submit"
+                  ) %>
+                <% end %>
               </div>
             <% end %>
-          </div>
-        </div>
+          <% end %>
+        <% end %>
 
-        <div class="overflow-hidden bg-white shadow ring-1 ring-gray-200 ring-opacity-5 sm:rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-5">GitHub Issue</h2>
+        <%= render FlatPack::Card::Component.new(style: :outlined) do |card| %>
+          <% card.header do %>
+            <h2 class="text-base font-semibold text-gray-900">GitHub Issue</h2>
+          <% end %>
+          <% card.body do %>
             <% if @error_log.has_github_issue? %>
               <dl class="grid grid-cols-1 gap-x-4 gap-y-4">
                 <div>
@@ -104,7 +126,13 @@
                 <div>
                   <dt class="text-sm font-medium text-gray-500">Issue URL</dt>
                   <dd class="mt-1 text-sm text-gray-900">
-                    <%= link_to @error_log.github_issue_url, @error_log.github_issue_url, target: "_blank", rel: "noopener noreferrer", class: "text-blue-600 hover:text-blue-900" %>
+                    <%= render FlatPack::Button::Component.new(
+                      text: @error_log.github_issue_url,
+                      style: :ghost,
+                      size: :sm,
+                      url: @error_log.github_issue_url,
+                      target: "_blank"
+                    ) %>
                   </dd>
                 </div>
               </dl>
@@ -112,18 +140,26 @@
               <% if @github_configured %>
                 <p class="text-sm text-gray-500 italic">No GitHub issue has been created for this error.</p>
                 <div class="mt-5">
-                  <%= button_to "Create GitHub Issue", create_issue_dashboard_path(@error_log), method: :post, class: "inline-flex items-center rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" %>
+                  <%= form_with url: create_issue_dashboard_path(@error_log), method: :post do %>
+                    <%= render FlatPack::Button::Component.new(
+                      text: "Create GitHub Issue",
+                      style: :primary,
+                      type: "submit"
+                    ) %>
+                  <% end %>
                 </div>
               <% else %>
                 <p class="text-sm text-gray-500 italic">GitHub integration is not configured. Configure <code class="bg-gray-50 px-2 py-1 rounded border border-gray-200">github_access_token</code>, <code class="bg-gray-50 px-2 py-1 rounded border border-gray-200">github_repo_owner</code>, and <code class="bg-gray-50 px-2 py-1 rounded border border-gray-200">github_repo_name</code> in your initializer.</p>
               <% end %>
             <% end %>
-          </div>
-        </div>
+          <% end %>
+        <% end %>
 
-        <div class="overflow-hidden bg-white shadow ring-1 ring-gray-200 ring-opacity-5 sm:rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-5">Request Details</h2>
+        <%= render FlatPack::Card::Component.new(style: :outlined) do |card| %>
+          <% card.header do %>
+            <h2 class="text-base font-semibold text-gray-900">Request Details</h2>
+          <% end %>
+          <% card.body do %>
             <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
               <% params_hash = @error_log.params_hash %>
               <div>
@@ -149,20 +185,21 @@
                 </dd>
               </div>
             </dl>
-          </div>
-        </div>
+          <% end %>
+        <% end %>
 
-        <div class="overflow-hidden bg-white shadow ring-1 ring-gray-200 ring-opacity-5 sm:rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-5">Stack Trace</h2>
+        <%= render FlatPack::Card::Component.new(style: :outlined) do |card| %>
+          <% card.header do %>
+            <h2 class="text-base font-semibold text-gray-900">Stack Trace</h2>
+          <% end %>
+          <% card.body do %>
             <% if @error_log.backtrace_lines.any? %>
-              <pre class="text-xs font-mono bg-slate-800 text-cyan-50 p-4 rounded overflow-x-auto leading-relaxed border border-slate-700"><% @error_log.backtrace_lines.each_with_index do |line, idx| %><span class="text-slate-500 select-none mr-3 inline-block min-w-[36px] text-right"><%= idx + 1 %>.</span> <%= line %>
-<% end %></pre>
+              <pre class="text-xs font-mono bg-slate-800 text-cyan-50 p-4 rounded overflow-x-auto leading-relaxed border border-slate-700"><% @error_log.backtrace_lines.each_with_index do |line, idx| %><span class="text-slate-500 select-none mr-3 inline-block min-w-[36px] text-right"><%= idx + 1 %>.</span> <%= line %> <% end %></pre>
             <% else %>
               <p class="text-sm text-gray-500 italic">No backtrace available</p>
             <% end %>
-          </div>
-        </div>
+          <% end %>
+        <% end %>
       </div>
     </div>
   </div>

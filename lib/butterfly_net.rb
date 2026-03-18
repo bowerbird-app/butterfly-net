@@ -6,6 +6,7 @@ require "butterfly_net/services/git_blame"
 require "butterfly_net/services/github_issue_creator"
 require "butterfly_net/services/analytics"
 require "pagy"
+require "flat_pack"
 
 module ButterflyNet
   class << self
