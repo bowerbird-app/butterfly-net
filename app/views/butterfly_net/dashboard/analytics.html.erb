@@ -1,23 +1,10 @@
-<div class="bg-white px-4 py-10 sm:px-6 lg:px-8">
-  <div class="mx-auto max-w-7xl">
-    <!-- Header with Navigation -->
+<div>
+    <!-- Header -->
     <div class="px-4 sm:px-6 lg:px-8 mb-8">
-      <div class="flex items-center justify-between">
-        <div class="sm:flex-auto">
-          <%= render FlatPack::PageHeader::Component.new(
-            title: "Analytics Dashboard",
-            subtitle: "Monitor error trends, user impact, and performance metrics"
-          ) %>
-        </div>
-        <div>
-          <%= render FlatPack::Button::Component.new(
-            text: "← Back to Errors",
-            style: :ghost,
-            size: :sm,
-            url: butterfly_net.dashboard_index_path
-          ) %>
-        </div>
-      </div>
+      <%= render FlatPack::PageHeader::Component.new(
+        title: "Analytics Dashboard",
+        subtitle: "Monitor error trends, user impact, and performance metrics"
+      ) %>
     </div>
 
     <!-- Summary KPI Cards -->
@@ -113,7 +100,6 @@
         </div>
       </div>
     </div>
-  </div>
 </div>
 
 <%= javascript_include_tag "butterfly_net/analytics", defer: true %>

@@ -12,11 +12,42 @@
   <%= stylesheet_link_tag "butterfly_net/application", media: "all" %>
   <%= stylesheet_link_tag "butterfly_net/vendor/apexcharts", media: "all" %>
   <%= javascript_include_tag "butterfly_net/vendor/apexcharts.min", defer: true %>
+  <%= javascript_include_tag "butterfly_net/vendor/flat_pack_sidebar", defer: true %>
+  <%= javascript_include_tag "butterfly_net/vendor/flat_pack_icons", defer: true %>
   <%= javascript_include_tag "butterfly_net/infinite_scroll", defer: true %>
 </head>
-<body class="font-sans text-sm leading-normal text-gray-800 bg-gray-100 m-0 p-0">
-  <div class="max-w-7xl mx-auto p-5">
-    <%= yield %>
-  </div>
+<body class="font-sans text-sm leading-normal text-gray-800 overflow-hidden">
+  <%= render FlatPack::SidebarLayout::Component.new(storage_key: "butterfly-net-sidebar") do |layout| %>
+    <% layout.sidebar do %>
+      <%= render FlatPack::Sidebar::Component.new do |sidebar| %>
+        <% sidebar.header do %>
+          <%= render FlatPack::Sidebar::Header::Component.new(
+            brand_abbr: "BN",
+            title: "ButterflyNet",
+            style: "--sidebar-header-border-color: transparent"
+          ) %>
+        <% end %>
+        <% sidebar.items do %>
+          <%= render FlatPack::Sidebar::Item::Component.new(
+            label: "Errors",
+            href: butterfly_net.dashboard_index_path,
+            icon: :list_bullet,
+            active: action_name == "index"
+          ) %>
+          <%= render FlatPack::Sidebar::Item::Component.new(
+            label: "Analytics",
+            href: butterfly_net.analytics_path,
+            icon: :chart_bar,
+            active: action_name == "analytics"
+          ) %>
+        <% end %>
+      <% end %>
+    <% end %>
+    <% layout.main do %>
+      <div class="bg-white min-h-full py-6">
+        <%= yield %>
+      </div>
+    <% end %>
+  <% end %>
 </body>
 </html>
