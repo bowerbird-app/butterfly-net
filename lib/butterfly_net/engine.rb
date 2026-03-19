@@ -25,5 +25,12 @@ module ButterflyNet
         app.config.importmap.cache_sweepers << root.join("app/assets/javascripts")
       end
     end
+
+    # Ensure importmap helpers are available in isolated engine views.
+    initializer "butterfly_net.importmap_helper", after: "importmap.helpers" do
+      ActiveSupport.on_load(:action_controller_base) do
+        helper ::Importmap::ImportmapTagsHelper if defined?(::Importmap::ImportmapTagsHelper)
+      end
+    end
   end
 end
