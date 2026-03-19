@@ -25,4 +25,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "pagy", "~> 9.0"
   spec.add_dependency "flat_pack", ">= 0.1.5"
   spec.add_dependency "view_component", "~> 3.0"
+  spec.add_dependency "importmap-rails"
+  spec.add_dependency "stimulus-rails"
 end

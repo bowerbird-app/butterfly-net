@@ -1,4 +1,7 @@
-<div>
+<div data-controller="analytics"
+     data-analytics-summary-url-value="<%= butterfly_net.analytics_summary_path %>"
+     data-analytics-top-errors-url-value="<%= butterfly_net.analytics_top_errors_path %>"
+     data-analytics-time-series-url-value="<%= butterfly_net.analytics_time_series_path %>">
     <!-- Header -->
     <div class="px-4 sm:px-6 lg:px-8 mb-8">
       <%= render FlatPack::PageHeader::Component.new(
@@ -102,4 +105,4 @@
     </div>
 </div>
 
-<%= javascript_include_tag "butterfly_net/analytics", defer: true %>
+

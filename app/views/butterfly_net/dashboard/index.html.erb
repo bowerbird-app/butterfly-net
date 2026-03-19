@@ -24,7 +24,9 @@
                 icon: :inbox
               ) %>
             <% else %>
-              <div id="error-logs-container">
+              <div id="error-logs-container"
+                   data-controller="infinite-scroll"
+                   data-infinite-scroll-url-value="<%= butterfly_net.dashboard_index_path %>">
                 <%= render FlatPack::Table::Component.new(data: @error_logs) do |table| %>
                   <% table.column(title: "Status", html: ->(error_log) {
                     case error_log.status
@@ -76,10 +78,10 @@
                 <% end %>
 
                 <!-- Sentinel element for infinite scroll detection -->
-                <div id="scroll-sentinel" style="height: 1px;"></div>
+                <div data-infinite-scroll-target="sentinel" style="height: 1px;"></div>
 
                 <!-- Loading indicator -->
-                <div id="loading-indicator" class="hidden text-center py-4">
+                <div data-infinite-scroll-target="loadingIndicator" class="hidden text-center py-4">
                   <div class="inline-flex items-center gap-2 text-gray-600">
                     <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

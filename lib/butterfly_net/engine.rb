@@ -16,5 +16,14 @@ module ButterflyNet
         ButterflyNet::Middleware::ExceptionCatcher.handle_intercepted_exception(exception, request.env)
       end
     end
+
+    # Register the engine's importmap pins with the host application so that
+    # Stimulus and the engine's JS controllers are available via importmap.
+    initializer "butterfly_net.importmap", before: "importmap" do |app|
+      if app.config.respond_to?(:importmap)
+        app.config.importmap.paths << root.join("config/importmap.rb")
+        app.config.importmap.cache_sweepers << root.join("app/assets/javascripts")
+      end
+    end
   end
 end

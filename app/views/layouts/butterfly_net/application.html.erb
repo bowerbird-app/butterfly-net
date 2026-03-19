@@ -14,7 +14,7 @@
   <%= javascript_include_tag "butterfly_net/vendor/apexcharts.min", defer: true %>
   <%= javascript_include_tag "butterfly_net/vendor/flat_pack_sidebar", defer: true %>
   <%= javascript_include_tag "butterfly_net/vendor/flat_pack_icons", defer: true %>
-  <%= javascript_include_tag "butterfly_net/infinite_scroll", defer: true %>
+  <%= javascript_importmap_tags "butterfly_net/application" %>
 </head>
 <body class="font-sans text-sm leading-normal text-gray-800 overflow-hidden">
   <%= render FlatPack::SidebarLayout::Component.new(storage_key: "butterfly-net-sidebar") do |layout| %>
