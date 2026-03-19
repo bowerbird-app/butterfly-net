@@ -15,6 +15,7 @@ PATH
       faraday-retry
       flat_pack (>= 0.1.5)
       importmap-rails
+      minitest (~> 5.0)
       octokit (~> 10.0)
       pagy (~> 9.0)
       rails (>= 8.1.1)
@@ -151,9 +152,7 @@ GEM
     marcel (1.1.0)
     method_source (1.1.0)
     mini_mime (1.1.5)
-    minitest (6.0.2)
-      drb (~> 2.0)
-      prism (~> 1.5)
+    minitest (5.27.0)
     net-http (0.8.0)
       uri (>= 0.11.1)
     net-imap (0.6.3)
