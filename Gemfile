@@ -3,6 +3,8 @@ source "https://rubygems.org"
 # Specify your gem's dependencies in butterfly_net.gemspec.
 gemspec
 
+gem "flat_pack", github: "bowerbird-app/flatpack"
+
 gem "puma"
 
 gem "sqlite3"

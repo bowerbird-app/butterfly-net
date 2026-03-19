@@ -1,10 +1,16 @@
 /*
  * ButterflyNet Dashboard Styles - Tailwind CSS v4
- * Compiled via tailwindcss-ruby gem
+ * FlatPack CSS variables and theming via flat_pack/variables.css
+ * Source: https://github.com/bowerbird-app/flatpack
  */
 
 /* Tailwind CSS v4 imports */
 @import "tailwindcss";
+
+/* FlatPack complete variable set — @theme {} and :root {} for all themes
+ * Imports all component design tokens and the full light-mode palette.
+ * The build task resolves this import against the installed gem path. */
+@import "flat_pack/variables.css";
 
 /* Configure source paths for the engine */
 @source "../../../views/butterfly_net/**/*.html.erb";
