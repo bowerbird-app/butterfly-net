@@ -598,4 +598,205 @@ class ButterflyNet::Services::GitHubIssueCreatorTest < ActiveSupport::TestCase
     assert_includes result.error_message, "Unexpected error"
     assert_includes result.error_message, "Invalid repository format"
   end
+
+  test "build_issue_body includes environment section with ruby and rails versions" do
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    body = service.send(:build_issue_body, error_log, nil)
+
+    assert_includes body, "## Environment"
+    assert_includes body, RUBY_VERSION
+    assert_includes body, Rails::VERSION::STRING
+    assert_includes body, ButterflyNet::VERSION
+  end
+
+  test "build_issue_body includes occurrence count" do
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    body = service.send(:build_issue_body, error_log, nil)
+
+    assert_includes body, "**Occurrences**"
+  end
+
+  test "build_issue_body includes dashboard link when dashboard_host is configured" do
+    ButterflyNet.configure do |config|
+      config.github_access_token = "token"
+      config.github_repo_owner = "owner"
+      config.github_repo_name = "repo"
+      config.dashboard_host = "https://myapp.example.com"
+    end
+
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    body = service.send(:build_issue_body, error_log, nil)
+
+    assert_includes body, "https://myapp.example.com/butterfly_net/dashboard/#{error_log.id}"
+    assert_includes body, "View Error"
+  end
+
+  test "build_issue_body omits dashboard link when dashboard_host is not configured" do
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    body = service.send(:build_issue_body, error_log, nil)
+
+    assert_not_includes body, "View Error"
+  end
+
+  test "build_dashboard_url strips trailing slash from host" do
+    ButterflyNet.configure do |config|
+      config.dashboard_host = "https://myapp.example.com/"
+    end
+
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    url = service.send(:build_dashboard_url, error_log)
+    assert_equal "https://myapp.example.com/butterfly_net/dashboard/#{error_log.id}", url
+  end
+
+  test "build_issue_body includes request params in request details section" do
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      request_params: {
+        path: "/api/orders",
+        method: "POST",
+        params: { "user_id" => "42", "item_id" => "99" }
+      }
+    )
+
+    body = service.send(:build_issue_body, error_log, nil)
+
+    assert_includes body, "### Parameters"
+    assert_includes body, '"user_id"'
+    assert_includes body, '"42"'
+    assert_includes body, '"item_id"'
+  end
+
+  test "build_issue_body omits parameters section when params are empty" do
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      request_params: { path: "/api/orders", method: "GET" }
+    )
+
+    body = service.send(:build_issue_body, error_log, nil)
+
+    assert_not_includes body, "### Parameters"
+  end
+
+  test "build_issue_body includes code context from blame when present" do
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    blame_result = ButterflyNet::Services::GitBlame::BlameResult.new(
+      file: "app/controllers/test_controller.rb",
+      line_number: 10,
+      commit_sha: "abc123def456",
+      author_name: "Test Author",
+      author_email: "test@example.com",
+      commit_date: Time.now.utc,
+      line_content: "raise RuntimeError",
+      context_lines: [
+        { line_number: 8, content: "  def index" },
+        { line_number: 9, content: "    @user = User.find(params[:id])" },
+        { line_number: 10, content: "    raise RuntimeError" },
+        { line_number: 11, content: "  end" }
+      ]
+    )
+
+    body = service.send(:build_issue_body, error_log, blame_result)
+
+    assert_includes body, "### Code Context"
+    assert_includes body, "→"
+    assert_includes body, "def index"
+    assert_includes body, "raise RuntimeError"
+    # Should NOT fall back to the plain "Problematic Line" section
+    assert_not_includes body, "### Problematic Line"
+  end
+
+  test "build_issue_body falls back to problematic line when context_lines absent" do
+    service = ButterflyNet::Services::GitHubIssueCreator.new(
+      access_token: "token",
+      repo: "owner/repo"
+    )
+
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error"
+    )
+
+    blame_result = ButterflyNet::Services::GitBlame::BlameResult.new(
+      file: "app/controllers/test_controller.rb",
+      line_number: 42,
+      commit_sha: "abc123def456",
+      author_name: "Test Author",
+      author_email: "test@example.com",
+      commit_date: Time.now.utc,
+      line_content: "raise RuntimeError",
+      context_lines: nil
+    )
+
+    body = service.send(:build_issue_body, error_log, blame_result)
+
+    assert_includes body, "### Problematic Line"
+    assert_includes body, "raise RuntimeError"
+    assert_not_includes body, "### Code Context"
+  end
 end

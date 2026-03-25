@@ -8,7 +8,7 @@ module ButterflyNet
     # Parses backtrace to identify file locations and retrieves
     # the author responsible for the code that caused the error.
     class GitBlame
-      BlameResult = Struct.new(:file, :line_number, :commit_sha, :author_name, :author_email, :commit_date, :line_content, keyword_init: true)
+      BlameResult = Struct.new(:file, :line_number, :commit_sha, :author_name, :author_email, :commit_date, :line_content, :context_lines, keyword_init: true)
 
       BACKTRACE_LINE_REGEX = /^(.+):(\d+):in/.freeze
 
@@ -102,10 +102,29 @@ module ButterflyNet
           output = `git blame -L #{line_number},#{line_number} --porcelain -- #{Shellwords.shellescape(relative_path)} 2>/dev/null`
           return nil unless $?.success? && output.present?
 
-          parse_porcelain_output(output, relative_path, line_number)
+          result = parse_porcelain_output(output, relative_path, line_number)
+          return nil unless result
+
+          result.context_lines = read_surrounding_lines(relative_path, line_number)
+          result
         end
       rescue StandardError => e
         Rails.logger.error("[ButterflyNet] GitBlame error: #{e.message}") if defined?(Rails)
+        nil
+      end
+
+      def read_surrounding_lines(relative_path, line_number, window: 5)
+        full_path = File.join(repo_path, relative_path)
+        return nil unless File.exist?(full_path)
+
+        lines = File.readlines(full_path, chomp: true)
+        start_idx = [ line_number - window - 1, 0 ].max
+        end_idx   = [ line_number + window - 1, lines.length - 1 ].min
+
+        lines[start_idx..end_idx].each_with_index.map do |content, idx|
+          { line_number: start_idx + idx + 1, content: content }
+        end
+      rescue StandardError
         nil
       end
 

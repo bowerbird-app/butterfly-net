@@ -14,11 +14,16 @@ module ButterflyNet
     # Path to the local git repository (defaults to Rails.root)
     attr_accessor :repo_path
 
+    # Host for the ButterflyNet dashboard (e.g., "https://myapp.com")
+    # Used to generate links back to the dashboard in GitHub issues.
+    attr_accessor :dashboard_host
+
     def initialize
       @github_access_token = nil
       @github_repo_owner = nil
       @github_repo_name = nil
       @repo_path = nil
+      @dashboard_host = nil
     end
 
     # Returns the full repository name in "owner/repo" format
