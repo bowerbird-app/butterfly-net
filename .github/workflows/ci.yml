@@ -41,6 +41,9 @@ jobs:
     permissions:
       contents: read
 
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/test/dummy-rails-7/Gemfile
+
     strategy:
       fail-fast: false
       matrix:
@@ -53,8 +56,10 @@ jobs:
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: ${{ matrix.ruby-version }}
-        gemfile: test/dummy-rails-7/Gemfile
-        bundler-cache: true
+
+    - name: Install Rails 7 bundle
+      run: bundle install
+      working-directory: test/dummy-rails-7
 
     - name: Run database migrations
       run: bundle exec rake db:migrate RAILS_ENV=test
