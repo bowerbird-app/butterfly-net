@@ -14,7 +14,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     get butterfly_net.dashboard_index_path
 
     assert_response :success
-    assert_match /No errors recorded yet/, response.body
+    assert_match /No data available/, response.body
   end
 
   test "index displays error logs" do
@@ -286,7 +286,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Should have create issue button when configured
-    assert_select "form[action=?]", butterfly_net.create_issue_dashboard_path(error_log)
+    assert_select "a[href=?]", butterfly_net.create_issue_dashboard_path(error_log)
   ensure
     ButterflyNet.reset_configuration!
   end
