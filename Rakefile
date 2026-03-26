@@ -16,7 +16,7 @@ if ENV["COVERAGE"]
   end
 end
 
-APP_RAKEFILE = File.expand_path("test/dummy/Rakefile", __dir__)
+APP_RAKEFILE = File.expand_path("test/#{ENV.fetch('DUMMY_APP', 'dummy')}/Rakefile", __dir__)
 load "rails/tasks/engine.rake"
 
 require "bundler/gem_tasks"

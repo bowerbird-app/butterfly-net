@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class AddGitBlameAndGithubIssueToButterflyNetErrorLogs < ActiveRecord::Migration[8.1]
+class AddGitBlameAndGithubIssueToButterflyNetErrorLogs < ActiveRecord::Migration[7.1]
   def change
     add_column :butterfly_net_error_logs, :github_issue_number, :integer
     add_column :butterfly_net_error_logs, :github_issue_url, :string

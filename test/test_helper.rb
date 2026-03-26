@@ -19,8 +19,9 @@ if ENV["COVERAGE"]
   end
 end
 
-require_relative "dummy/config/environment"
-ActiveRecord::Migrator.migrations_paths = [ File.expand_path("dummy/db/migrate", __dir__) ]
+dummy_app = ENV.fetch("DUMMY_APP", "dummy")
+require File.expand_path("#{dummy_app}/config/environment", __dir__)
+ActiveRecord::Migrator.migrations_paths = [ File.expand_path("#{dummy_app}/db/migrate", __dir__) ]
 # ActiveRecord::Migrator.migrations_paths << File.expand_path("../db/migrate", __dir__)
 require "rails/test_help"
 

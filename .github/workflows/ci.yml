@@ -7,24 +7,24 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: read
-    
+
     strategy:
       fail-fast: false
       matrix:
         ruby-version: ['3.2', '3.3']
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Ruby ${{ matrix.ruby-version }}
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true
-    
+
     - name: Run database migrations
       run: bundle exec rake db:migrate RAILS_ENV=test
       working-directory: test/dummy
@@ -34,3 +34,36 @@ jobs:
 
     - name: Run tests
       run: bundle exec rake app:test
+
+  test-rails-7:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/test/dummy-rails-7/Gemfile
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ['3.2', '3.3']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby ${{ matrix.ruby-version }}
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby-version }}
+
+    - name: Install Rails 7 bundle
+      run: bundle install
+      working-directory: test/dummy-rails-7
+
+    - name: Run database migrations
+      run: bundle exec rake db:migrate RAILS_ENV=test
+      working-directory: test/dummy-rails-7
+
+    - name: Run tests
+      run: DUMMY_APP=dummy-rails-7 bundle exec rake app:test
