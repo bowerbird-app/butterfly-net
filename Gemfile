@@ -4,6 +4,7 @@ source "https://rubygems.org"
 gemspec
 
 gem "flat_pack", github: "bowerbird-app/flatpack", tag: "v0.1.11"
+gem "minitest", "< 6"
 
 gem "puma"
 

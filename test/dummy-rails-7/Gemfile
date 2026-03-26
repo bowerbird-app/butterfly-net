@@ -6,6 +6,7 @@ gem "rails", "~> 7.1"
 gemspec path: "../.."
 
 gem "flat_pack", github: "bowerbird-app/flatpack", tag: "v0.1.11"
+gem "minitest", "< 6"
 
 gem "puma"
 
