@@ -8,12 +8,12 @@ ButterflyNet is a self-hosted error tracking dashboard for Rails applications. I
 - **Namespace Isolation**: Uses `isolate_namespace` for clean separation
 - **Rack Middleware**: Catches exceptions from the entire stack, not just controller errors
 - **Persistent Storage**: Stores errors in a database table (namespaced to avoid conflicts)
-- **Dashboard UI**: Clean, paginated interface to browse and inspect errors
+- **Dashboard UI**: Clean, paginated interface with a sidebar navigation layout built on the [FlatPack](https://github.com/bowerbird-app/flatpack) component library
 - **Tailwind CSS Styling**: Uses Tailwind CSS v4 for a modern, responsive design that won't conflict with host application styles
 - **User Tracking**: Track which users are affected by each error with separate occurrence records
 - **Error Status Management**: Track bug resolution status (open, in_progress, resolved, dismissed)
-- **Git Blame Integration**: Identify who introduced the code that caused an error
-- **GitHub Issue Integration**: Create GitHub issues directly from the error dashboard
+- **Git Blame Integration**: Automatically fetch (on error creation) or manually trigger git blame to identify who introduced the error
+- **GitHub Issue Integration**: Create enriched GitHub issues directly from the dashboard, including code context, environment info, and occurrence counts; supports filing issues in upstream bowerbird-app gem repos
 
 ## Installation
 
@@ -35,6 +35,41 @@ Run the migration to create the error logs table:
 bin/rails butterfly_net:install:migrations
 bin/rails db:migrate
 ```
+
+## Upgrading from v0.4.0 to v0.5.0
+
+This release adds the FlatPack UI library, enriched GitHub issue bodies, upstream bowerbird reporting, and an environment guard for issue creation. **No database migrations are required.**
+
+### New Dependencies
+
+The following gems are now required dependencies and will be installed automatically:
+
+- [`flat_pack`](https://github.com/bowerbird-app/flatpack) — UI component library
+- `importmap-rails`, `turbo-rails`, `stimulus-rails` — JavaScript infrastructure for FlatPack
+
+If your host application already uses these gems, no action is needed. If not, their behaviour is self-contained within the engine.
+
+### New Configuration Options (Optional)
+
+```ruby
+ButterflyNet.configure do |config|
+  # Optional: Used to link back to the error in GitHub issue bodies
+  config.dashboard_host = "https://myapp.com"
+
+  # Optional: Restrict GitHub issue creation to specific environments
+  # Defaults to %w[production staging]
+  config.github_issue_environments = %w[production staging]
+
+  # Optional: Map bundler gem names to bowerbird-app repos for upstream reporting
+  config.bowerbird_gem_repos = {
+    "flatpack" => "flatpack"
+  }
+end
+```
+
+### No Breaking Changes
+
+All existing configuration and functionality continues to work. The dashboard UI has been rebuilt with FlatPack components.
 
 ## Upgrading from v0.3.0 to v0.4.0
 
@@ -405,6 +440,10 @@ ButterflyNet.configure do |config|
   # Optional: Path to the git repository (defaults to Rails.root)
   config.repo_path = Rails.root.to_s
 
+  # Optional: Host URL for the ButterflyNet dashboard — used to include a
+  # link back to the error in GitHub issue bodies.
+  config.dashboard_host = "https://myapp.com"
+
   # Optional: Environments where GitHub issue creation is allowed.
   # Defaults to production and staging only — development is excluded
   # to prevent noise from local errors.
@@ -458,9 +497,11 @@ When creating a GitHub issue from an error:
 
 - The issue title includes the exception class and message
 - The issue body includes:
-  - Error details (exception class, timestamp, error ID)
-  - Git blame information (if available)
-  - Request details (path, method, user agent)
+  - Error details (exception class, timestamp, error ID, occurrence count)
+  - Ruby, Rails, and ButterflyNet version information
+  - Git blame information with ±5 lines of code context (blamed line highlighted with `→`)
+  - Request details (path, method, user agent, filtered params as JSON)
+  - Link back to the error in the dashboard (when `dashboard_host` is configured)
   - Stack trace (collapsed for readability)
 - Issues are automatically labeled with `bug` and `error-tracking`
 
