@@ -102,8 +102,17 @@
             <% else %>
               <% if @github_configured %>
                 <p class="text-sm text-gray-500 italic">No GitHub issue has been created for this error.</p>
-                <div class="mt-5">
+                <div class="mt-5 flex flex-wrap gap-3">
                   <%= render FlatPack::Button::Component.new(text: "Create GitHub Issue", style: :primary, size: :sm, url: create_issue_dashboard_path(@error_log), method: :post) %>
+                  <% @bowerbird_target_repos.each do |repo| %>
+                    <%= render FlatPack::Button::Component.new(
+                          text: "Report to #{repo.split('/').last}",
+                          style: :default,
+                          size: :sm,
+                          url: create_issue_dashboard_path(@error_log, target_repo: repo),
+                          method: :post
+                        ) %>
+                  <% end %>
                 </div>
               <% else %>
                 <p class="text-sm text-gray-500 italic">GitHub integration is not configured. Configure <code class="bg-gray-50 px-2 py-1 rounded border border-gray-200">github_access_token</code>, <code class="bg-gray-50 px-2 py-1 rounded border border-gray-200">github_repo_owner</code>, and <code class="bg-gray-50 px-2 py-1 rounded border border-gray-200">github_repo_name</code> in your initializer.</p>

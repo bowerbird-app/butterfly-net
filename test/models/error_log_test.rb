@@ -6,8 +6,13 @@ class ButterflyNet::ErrorLogTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
   setup do
+    ButterflyNet.reset_configuration!
     ButterflyNet::ErrorOccurrence.delete_all
     ButterflyNet::ErrorLog.delete_all
+  end
+
+  teardown do
+    ButterflyNet.reset_configuration!
   end
 
   test "creates error log with required fields" do
@@ -787,5 +792,87 @@ class ButterflyNet::ErrorLogTest < ActiveSupport::TestCase
     # Should use the same error log
     assert_equal error1.id, error2.id
     assert_equal 2, error1.occurrence_count
+  end
+
+  # Tests for bowerbird_repos_from_backtrace
+  test "bowerbird_repos_from_backtrace returns empty array when not configured" do
+    error_log = ButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      backtrace: "/usr/local/bundle/gems/flatpack-1.0.0/app/component.rb:10:in `call'"
+    )
+
+    assert_equal [], error_log.bowerbird_repos_from_backtrace
+  end
+
+  test "bowerbird_repos_from_backtrace returns empty array when no gem matches" do
+    ButterflyNet.configure do |c|
+      c.bowerbird_gem_repos = { "flatpack" => "flatpack" }
+    end
+
+    error_log = ButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      backtrace: "/app/controllers/users_controller.rb:42:in `index'"
+    )
+
+    assert_equal [], error_log.bowerbird_repos_from_backtrace
+  end
+
+  test "bowerbird_repos_from_backtrace detects matching gem in backtrace" do
+    ButterflyNet.configure do |c|
+      c.bowerbird_org = "bowerbird-app"
+      c.bowerbird_gem_repos = { "flatpack" => "flatpack" }
+    end
+
+    error_log = ButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      backtrace: "/usr/local/bundle/gems/flatpack-1.2.3/app/components/button.rb:10:in `call'"
+    )
+
+    assert_equal [ "bowerbird-app/flatpack" ], error_log.bowerbird_repos_from_backtrace
+  end
+
+  test "bowerbird_repos_from_backtrace handles gem names with hyphens and underscores" do
+    ButterflyNet.configure do |c|
+      c.bowerbird_org = "bowerbird-app"
+      c.bowerbird_gem_repos = { "butterfly_net" => "marco-butterfly-net" }
+    end
+
+    error_log = ButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      backtrace: "/bundle/gems/butterfly_net-0.2.1/lib/butterfly_net/middleware.rb:5:in `call'"
+    )
+
+    assert_equal [ "bowerbird-app/marco-butterfly-net" ], error_log.bowerbird_repos_from_backtrace
+  end
+
+  test "bowerbird_repos_from_backtrace returns unique repos even with multiple matching lines" do
+    ButterflyNet.configure do |c|
+      c.bowerbird_org = "bowerbird-app"
+      c.bowerbird_gem_repos = { "flatpack" => "flatpack" }
+    end
+
+    error_log = ButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      backtrace: "/gems/flatpack-1.0.0/a.rb:1:in `x'\n/gems/flatpack-1.0.0/b.rb:2:in `y'"
+    )
+
+    assert_equal [ "bowerbird-app/flatpack" ], error_log.bowerbird_repos_from_backtrace
+  end
+
+  test "bowerbird_repos_from_backtrace detects multiple distinct repos" do
+    ButterflyNet.configure do |c|
+      c.bowerbird_org = "bowerbird-app"
+      c.bowerbird_gem_repos = { "flatpack" => "flatpack", "butterfly_net" => "marco-butterfly-net" }
+    end
+
+    error_log = ButterflyNet::ErrorLog.new(
+      exception_class: "RuntimeError",
+      backtrace: "/gems/flatpack-1.0.0/a.rb:1:in `x'\n/gems/butterfly_net-0.1.0/b.rb:2:in `y'"
+    )
+
+    repos = error_log.bowerbird_repos_from_backtrace
+    assert_includes repos, "bowerbird-app/flatpack"
+    assert_includes repos, "bowerbird-app/marco-butterfly-net"
+    assert_equal 2, repos.size
   end
 end

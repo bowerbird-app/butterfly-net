@@ -63,6 +63,7 @@ class ButterflyNet::ConfigurationTest < ActiveSupport::TestCase
       config.github_access_token = "token"
       config.github_repo_owner = "owner"
       config.github_repo_name = "repo"
+      config.github_issue_environments = %w[test]
     end
 
     assert ButterflyNet.configuration.github_configured?
@@ -119,6 +120,7 @@ class ButterflyNet::ConfigurationTest < ActiveSupport::TestCase
       config.github_access_token = "initial_token"
       config.github_repo_owner = "initial_owner"
       config.github_repo_name = "initial_repo"
+      config.github_issue_environments = %w[test]
     end
 
     assert_equal "initial_token", ButterflyNet.configuration.github_access_token
@@ -129,6 +131,7 @@ class ButterflyNet::ConfigurationTest < ActiveSupport::TestCase
       config.github_access_token = "new_token"
       config.github_repo_owner = "new_owner"
       config.github_repo_name = "new_repo"
+      config.github_issue_environments = %w[test]
     end
 
     # Verify changes take effect immediately

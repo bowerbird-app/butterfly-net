@@ -25,6 +25,7 @@ module ButterflyNet
     def show
       @error_log = ErrorLog.find(params[:id])
       @github_configured = ButterflyNet.configuration.github_configured?
+      @bowerbird_target_repos = @error_log.bowerbird_repos_from_backtrace
     end
 
     # Fetches git blame information for the error
@@ -51,10 +52,17 @@ module ButterflyNet
         return
       end
 
-      result = @error_log.create_github_issue
+      target_repo = resolve_target_repo
+      unless target_repo
+        flash[:alert] = "Invalid target repository."
+        redirect_to dashboard_path(@error_log)
+        return
+      end
+
+      result = @error_log.create_github_issue(target_repo: target_repo)
 
       if result.success
-        flash[:notice] = "GitHub issue ##{result.issue_number} created successfully."
+        flash[:notice] = "GitHub issue ##{result.issue_number} created successfully in #{target_repo}."
       else
         flash[:alert] = "Failed to create GitHub issue: #{result.error_message}"
       end
@@ -68,6 +76,19 @@ module ButterflyNet
     end
 
     private
+
+    # Resolves the target repo for issue creation.
+    # Accepts params[:target_repo] only if it is the configured app repo
+    # or one of the bowerbird repos detected in the error's backtrace.
+    def resolve_target_repo
+      requested = params[:target_repo].presence
+      default_repo = ButterflyNet.configuration.full_repo_name
+
+      return default_repo unless requested
+
+      allowed = [ default_repo ] + @error_log.bowerbird_repos_from_backtrace
+      allowed.include?(requested) ? requested : nil
+    end
 
     def error_log_json(error_log, affected_count = nil)
       last_occurrence = error_log.occurrences.order(created_at: :desc).first
