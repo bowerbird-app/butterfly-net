@@ -2,9 +2,7 @@
 
 <%= render FlatPack::PageHeader::Component.new(title: "Analytics") %>
 
-<!-- Summary KPI Cards -->
-<div class="mb-8">
-  <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4" id="kpi-cards">
+<%= render FlatPack::Grid::Component.new(cols: 4, gap: :lg, id: "kpi-cards", class: "mb-8") do %>
         <!-- Cards will be populated by JavaScript -->
         <%= render FlatPack::Card::Component.new(style: :default, hover: :subtle, class: "shadow-md dark:shadow-lg") do |card| %>
           <% card.body do %>
@@ -30,12 +28,8 @@
             <dd class="mt-1 text-3xl font-semibold text-gray-900" id="kpi-occurrences">-</dd>
           <% end %>
         <% end %>
-  </div>
-</div>
-
-<!-- Charts Grid -->
-<div>
-  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+<% end %>
+<%= render FlatPack::Grid::Component.new(cols: 2, gap: :lg) do %>
         <!-- Status Breakdown Chart -->
         <%= render FlatPack::Card::Component.new(style: :default, hover: :subtle, class: "shadow-md dark:shadow-lg") do |card| %>
           <% card.header do %>
@@ -57,7 +51,7 @@
         <% end %>
 
         <!-- Affected Users Over Time -->
-        <div class="lg:col-span-2">
+        <div class="md:col-span-2">
           <%= render FlatPack::Card::Component.new(style: :default, hover: :subtle, class: "shadow-md dark:shadow-lg") do |card| %>
             <% card.header do %>
               <h3 class="text-lg font-semibold">Affected Users Over Time (Last 30 Days)</h3>
@@ -69,7 +63,7 @@
         </div>
 
         <!-- Error Occurrences Over Time -->
-        <div class="lg:col-span-2">
+        <div class="md:col-span-2">
           <%= render FlatPack::Card::Component.new(style: :default, hover: :subtle, class: "shadow-md dark:shadow-lg") do |card| %>
             <% card.header do %>
               <h3 class="text-lg font-semibold">Error Occurrences Over Time (Last 30 Days)</h3>
@@ -81,7 +75,7 @@
         </div>
 
         <!-- New Errors Over Time -->
-        <div class="lg:col-span-2">
+        <div class="md:col-span-2">
           <%= render FlatPack::Card::Component.new(style: :default, hover: :subtle, class: "shadow-md dark:shadow-lg") do |card| %>
             <% card.header do %>
               <h3 class="text-lg font-semibold">New Errors Discovered Over Time (Last 30 Days)</h3>
@@ -91,7 +85,7 @@
             <% end %>
           <% end %>
         </div>
-  </div>
-</div>
+
+<% end %>
 
 <%= javascript_include_tag "butterfly_net/analytics", defer: true %>
