@@ -44,16 +44,6 @@
       <% end %>
     <% end %>
 
-    <% layout.top_nav do %>
-      <%= render FlatPack::TopNav::Component.new do |nav| %>
-        <% nav.left do %>
-          <span class="text-sm font-semibold">
-            <%= content_for?(:page_title) ? yield(:page_title) : "ButterflyNet" %>
-          </span>
-        <% end %>
-      <% end %>
-    <% end %>
-
     <% layout.main do %>
       <div class="p-6">
         <%= yield %>

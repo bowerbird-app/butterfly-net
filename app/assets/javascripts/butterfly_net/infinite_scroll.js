@@ -79,7 +79,7 @@
     appendRows(errorLogs) {
       errorLogs.forEach(errorLog => {
         const row = this.createRow(errorLog);
-        this.tableBody.insertBefore(row, this.sentinel);
+        this.tableBody.appendChild(row);
       });
     }
 
