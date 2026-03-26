@@ -18,7 +18,7 @@ PATH
       importmap-rails
       octokit (~> 10.0)
       pagy (~> 9.0)
-      rails (>= 8.1.1)
+      rails (>= 7.1)
       stimulus-rails
       tailwindcss-ruby (~> 4.0)
       turbo-rails

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateButterflyNetErrorLogs < ActiveRecord::Migration[8.1]
+class CreateButterflyNetErrorLogs < ActiveRecord::Migration[7.1]
   def change
     create_table :butterfly_net_error_logs do |t|
       t.string :exception_class, null: false

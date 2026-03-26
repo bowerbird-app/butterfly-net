@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class AddUserTrackingToButterflyNetErrorLogs < ActiveRecord::Migration[8.1]
+class AddUserTrackingToButterflyNetErrorLogs < ActiveRecord::Migration[7.1]
   def change
     # Add status to error_logs for tracking bug status
     add_column :butterfly_net_error_logs, :status, :string, default: "open", null: false
