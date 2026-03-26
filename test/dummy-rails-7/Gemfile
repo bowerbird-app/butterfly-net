@@ -5,7 +5,7 @@ gem "rails", "~> 7.1"
 # Use the gem from the workspace root
 gemspec path: "../.."
 
-gem "flat_pack", github: "bowerbird-app/flatpack", tag: "v0.1.10"
+gem "flat_pack", github: "bowerbird-app/flatpack", tag: "v0.1.11"
 
 gem "puma"
 
