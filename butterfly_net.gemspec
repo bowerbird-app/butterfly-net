@@ -23,4 +23,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "faraday-retry"
   spec.add_dependency "tailwindcss-ruby", "~> 4.0"
   spec.add_dependency "pagy", "~> 9.0"
+  spec.add_dependency "flat_pack", "~> 0.1"
+  spec.add_dependency "importmap-rails"
+  spec.add_dependency "turbo-rails"
+  spec.add_dependency "stimulus-rails"
 end

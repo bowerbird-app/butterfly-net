@@ -14,7 +14,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     get butterfly_net.dashboard_index_path
 
     assert_response :success
-    assert_match /No errors recorded yet/, response.body
+    assert_match /No data available/, response.body
   end
 
   test "index displays error logs" do
@@ -187,6 +187,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
       config.github_access_token = "fake_token"
       config.github_repo_owner = "test_owner"
       config.github_repo_name = "test_repo"
+      config.github_issue_environments = %w[test]
     end
 
     error_log = ButterflyNet::ErrorLog.create!(
@@ -199,7 +200,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     mock_issue = OpenStruct.new(number: 123, html_url: "https://github.com/test_owner/test_repo/issues/123")
     mock_client.expect(:create_issue, mock_issue, [ String, String, String, Hash ])
 
-    ButterflyNet::Services::GitHubIssueCreator.stub :new, -> {
+    ButterflyNet::Services::GitHubIssueCreator.stub :new, ->(**_kwargs) {
       creator = Object.new
       def creator.configured?; true; end
       def creator.repo; "test_owner/test_repo"; end
@@ -230,6 +231,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
       config.github_access_token = "fake_token"
       config.github_repo_owner = "test_owner"
       config.github_repo_name = "test_repo"
+      config.github_issue_environments = %w[test]
     end
 
     error_log = ButterflyNet::ErrorLog.create!(
@@ -238,7 +240,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     )
 
     # Mock the service to return a failure result
-    ButterflyNet::Services::GitHubIssueCreator.stub :new, -> {
+    ButterflyNet::Services::GitHubIssueCreator.stub :new, ->(**_kwargs) {
       creator = Object.new
       def creator.configured?; true; end
       def creator.repo; "test_owner/test_repo"; end
@@ -272,6 +274,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
       config.github_access_token = "token"
       config.github_repo_owner = "owner"
       config.github_repo_name = "repo"
+      config.github_issue_environments = %w[test]
     end
 
     error_log = ButterflyNet::ErrorLog.create!(
@@ -283,7 +286,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Should have create issue button when configured
-    assert_select "form[action=?]", butterfly_net.create_issue_dashboard_path(error_log)
+    assert_select "a[href=?]", butterfly_net.create_issue_dashboard_path(error_log)
   ensure
     ButterflyNet.reset_configuration!
   end
@@ -347,6 +350,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
       config.github_access_token = "fake_token"
       config.github_repo_owner = "test_owner"
       config.github_repo_name = "test_repo"
+      config.github_issue_environments = %w[test]
     end
 
     error_log = ButterflyNet::ErrorLog.create!(
@@ -355,7 +359,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     )
 
     # Mock successful issue creation
-    ButterflyNet::Services::GitHubIssueCreator.stub :new, -> {
+    ButterflyNet::Services::GitHubIssueCreator.stub :new, ->(**_kwargs) {
       creator = Object.new
       def creator.configured?; true; end
       def creator.repo; "test_owner/test_repo"; end

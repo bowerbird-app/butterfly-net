@@ -21,7 +21,8 @@ The error tracking system is designed to capture exceptions, group them by type,
     *   Automatically fetches git blame information in the background (`FetchBlameJob`) upon creation if a backtrace is present.
     *   Stores blame details: file, line number, commit SHA, author, etc.
 *   **GitHub Integration:**
-    *   Can create GitHub issues directly from the error log.
+    *   Can create GitHub issues directly from the error log, either in the configured app repository or in an upstream bowerbird-app dependency repo detected from the backtrace.
+    *   Issue creation is restricted to allowed environments (production and staging by default; never enabled in development).
     *   Tracks associated GitHub issue numbers and URLs.
 *   **Scopes:**
     *   `recent`: Orders by creation date.
@@ -34,7 +35,8 @@ The error tracking system is designed to capture exceptions, group them by type,
 *   `find_or_create_with_occurrence`: Main entry point. Finds an existing log or creates a new one, then records a new occurrence.
 *   `record_occurrence`: Adds a new occurrence record to the log.
 *   `fetch_blame_info`: Retrieves git blame data from the backtrace.
-*   `create_github_issue`: Creates a linked GitHub issue.
+*   `create_github_issue(target_repo: nil)`: Creates a linked GitHub issue. Pass `target_repo: "org/repo"` to file the issue in a specific repository (e.g. an upstream bowerbird-app gem repo); defaults to the configured app repository.
+*   `bowerbird_repos_from_backtrace`: Returns a list of `"org/repo"` strings for any bowerbird-app dependency gems detected in the backtrace, based on the `bowerbird_gem_repos` configuration.
 
 ### ErrorOccurrence
 

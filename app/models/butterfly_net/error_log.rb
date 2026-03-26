@@ -183,16 +183,38 @@ module ButterflyNet
       result
     end
 
+    # Returns repo identifiers (e.g. "bowerbird-app/flatpack") for any
+    # bowerbird-app dependencies detected in this error's backtrace.
+    # Requires bowerbird_gem_repos to be configured.
+    # @return [Array<String>]
+    def bowerbird_repos_from_backtrace
+      org = ButterflyNet.configuration.bowerbird_org
+      gem_repo_map = ButterflyNet.configuration.bowerbird_gem_repos
+      return [] unless org.present? && gem_repo_map.present?
+
+      found = Set.new
+      backtrace_lines.each do |line|
+        match = line.match(%r{/gems/([A-Za-z0-9_-]+?)-\d+[.\d]*/})
+        next unless match
+
+        repo_name = gem_repo_map[match[1]]
+        found << "#{org}/#{repo_name}" if repo_name
+      end
+      found.to_a
+    end
+
     # Creates a GitHub issue for this error
     # @param additional_labels [Array<String>] extra labels to add
+    # @param target_repo [String, nil] override repo in "owner/name" format;
+    #   defaults to the globally configured repo
     # @return [ButterflyNet::Services::GitHubIssueCreator::IssueResult]
-    def create_github_issue(additional_labels: [])
+    def create_github_issue(additional_labels: [], target_repo: nil)
       return existing_issue_result if has_github_issue?
 
       # Ensure blame info is fetched
       blame_result = fetch_blame_info
 
-      service = ButterflyNet::Services::GitHubIssueCreator.new
+      service = ButterflyNet::Services::GitHubIssueCreator.new(repo: target_repo)
       result = service.create_issue_for_error(self, blame_result: blame_result, additional_labels: additional_labels)
 
       if result.success

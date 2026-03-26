@@ -6,8 +6,6 @@ module ButterflyNet
   class FetchBlameJob < ApplicationJob
     queue_as :default
 
-    retry_on StandardError, wait: 5.seconds, attempts: 3
-
     # Fetch blame information for the given error log
     # @param error_log_id [Integer] the ID of the error log to fetch blame for
     def perform(error_log_id)

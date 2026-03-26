@@ -404,6 +404,20 @@ ButterflyNet.configure do |config|
   
   # Optional: Path to the git repository (defaults to Rails.root)
   config.repo_path = Rails.root.to_s
+
+  # Optional: Environments where GitHub issue creation is allowed.
+  # Defaults to production and staging only — development is excluded
+  # to prevent noise from local errors.
+  config.github_issue_environments = %w[production staging]
+
+  # Optional: Map bundler gem names to GitHub repo names under bowerbird_org.
+  # When a backtrace line contains a path matching one of these gems, the
+  # dashboard will show an additional button to file the issue directly in
+  # that upstream bowerbird-app repository.
+  config.bowerbird_gem_repos = {
+    "flatpack"       => "flatpack",
+    "butterfly_net"  => "marco-butterfly-net"
+  }
 end
 ```
 
@@ -412,6 +426,31 @@ end
 1. Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
 2. Generate a new token with the `repo` scope
 3. Store the token securely (e.g., as an environment variable)
+
+### Environment Guard
+
+GitHub issue creation is disabled in `development` by default. This prevents local errors from creating noise in your issue tracker. Only environments listed in `github_issue_environments` will show the issue creation buttons.
+
+To allow an additional environment (e.g. a QA environment):
+
+```ruby
+config.github_issue_environments = %w[production staging qa]
+```
+
+### Reporting Issues to Upstream bowerbird-app Gems
+
+If a backtrace contains a path from a bowerbird-app dependency gem (e.g. `flatpack`), ButterflyNet will display an additional **"Report to [gem]"** button alongside the standard "Create GitHub Issue" button. Clicking it opens an issue directly in that gem's repository under the `bowerbird-app` GitHub organisation.
+
+Configure the gem-to-repo mapping in your initializer:
+
+```ruby
+config.bowerbird_gem_repos = {
+  "flatpack"      => "flatpack",
+  "butterfly_net" => "marco-butterfly-net"
+}
+```
+
+The organisation defaults to `"bowerbird-app"` and can be changed via `config.bowerbird_org`.
 
 ### Features
 

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require "octokit"
 
 module ButterflyNet
@@ -70,11 +71,22 @@ module ButterflyNet
         body << "| **Exception Class** | `#{error_log.exception_class}` |"
         body << "| **Occurred At** | #{error_log.created_at&.strftime('%Y-%m-%d %H:%M:%S %Z')} |"
         body << "| **Error Log ID** | #{error_log.id} |"
+        body << "| **Occurrences** | #{error_log.occurrence_count} |"
+        dashboard_url = build_dashboard_url(error_log)
+        body << "| **Dashboard** | [View Error](#{dashboard_url}) |" if dashboard_url
         body << ""
         body << "### Message\n"
         body << "```"
         body << error_log.message
         body << "```"
+        body << ""
+
+        body << "## Environment\n"
+        body << "| Component | Version |"
+        body << "|-----------|---------|"
+        body << "| **Ruby** | #{RUBY_VERSION} |"
+        body << "| **Rails** | #{Rails::VERSION::STRING} |" if defined?(Rails)
+        body << "| **ButterflyNet** | #{ButterflyNet::VERSION} |"
         body << ""
 
         if blame_result
@@ -87,7 +99,16 @@ module ButterflyNet
           body << "| **Author** | #{blame_result.author_name} (#{blame_result.author_email}) |"
           body << "| **Commit Date** | #{blame_result.commit_date&.strftime('%Y-%m-%d %H:%M:%S %Z')} |"
           body << ""
-          if blame_result.line_content.present?
+          if blame_result.context_lines.present?
+            body << "### Code Context\n"
+            body << "```ruby"
+            blame_result.context_lines.each do |line_info|
+              marker = line_info[:line_number] == blame_result.line_number ? "→" : " "
+              body << "#{marker} #{line_info[:line_number].to_s.rjust(4)}: #{line_info[:content]}"
+            end
+            body << "```"
+            body << ""
+          elsif blame_result.line_content.present?
             body << "### Problematic Line\n"
             body << "```"
             body << blame_result.line_content
@@ -105,6 +126,14 @@ module ButterflyNet
           body << "| **Method** | `#{params_hash['method'] || params_hash[:method] || 'N/A'}` |"
           body << "| **User Agent** | #{error_log.user_agent || 'N/A'} |"
           body << ""
+          request_params = params_hash["params"] || params_hash[:params]
+          if request_params.present?
+            body << "### Parameters\n"
+            body << "```json"
+            body << JSON.pretty_generate(request_params)
+            body << "```"
+            body << ""
+          end
         end
 
         if error_log.backtrace_lines.any?
@@ -127,6 +156,13 @@ module ButterflyNet
         body << "_This issue was automatically created by [ButterflyNet](https://github.com/bowerbird-app/marco-butterfly-net)_"
 
         body.join("\n")
+      end
+
+      def build_dashboard_url(error_log)
+        host = ButterflyNet.configuration.dashboard_host
+        return nil unless host.present?
+
+        "#{host.chomp('/')}/butterfly_net/dashboard/#{error_log.id}"
       end
 
       def build_labels(error_log, additional_labels)
