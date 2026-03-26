@@ -16,5 +16,12 @@ module ButterflyNet
         ButterflyNet::Middleware::ExceptionCatcher.handle_intercepted_exception(exception, request.env)
       end
     end
+
+    # Configure importmap for JavaScript (Stimulus controllers, etc.)
+    initializer "butterfly_net.importmap", before: "importmap" do |app|
+      if app.config.respond_to?(:importmap)
+        app.config.importmap.paths << root.join("config/importmap.rb")
+      end
+    end
   end
 end

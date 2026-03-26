@@ -1,21 +1,8 @@
-<div class="bg-white px-4 py-10 sm:px-6 lg:px-8">
-  <div class="mx-auto max-w-7xl">
-    <!-- Header with Navigation -->
-    <div class="px-4 sm:px-6 lg:px-8 mb-8">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-semibold text-gray-900">Analytics Dashboard</h1>
-          <p class="mt-2 text-sm text-gray-700">Monitor error trends, user impact, and performance metrics</p>
-        </div>
-        <div>
-          <%= link_to "← Back to Errors", butterfly_net.dashboard_index_path, class: "text-sm font-medium text-blue-600 hover:text-blue-800" %>
-        </div>
-      </div>
-    </div>
+<% content_for :page_title, "Analytics" %>
 
-    <!-- Summary KPI Cards -->
-    <div class="px-4 sm:px-6 lg:px-8 mb-8">
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4" id="kpi-cards">
+<!-- Summary KPI Cards -->
+<div class="mb-8">
+  <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4" id="kpi-cards">
         <!-- Cards will be populated by JavaScript -->
         <div class="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
           <div class="px-4 py-5 sm:p-6">
@@ -41,12 +28,12 @@
             <dd class="mt-1 text-3xl font-semibold text-gray-900" id="kpi-occurrences">-</dd>
           </div>
         </div>
-      </div>
-    </div>
+  </div>
+</div>
 
-    <!-- Charts Grid -->
-    <div class="px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+<!-- Charts Grid -->
+<div>
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Status Breakdown Chart -->
         <div class="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
           <div class="px-4 py-5 sm:p-6">
@@ -86,8 +73,6 @@
             <div id="new-errors-chart"></div>
           </div>
         </div>
-      </div>
-    </div>
   </div>
 </div>
 

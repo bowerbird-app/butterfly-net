@@ -3,12 +3,18 @@ source "https://rubygems.org"
 # Specify your gem's dependencies in butterfly_net.gemspec.
 gemspec
 
+gem "flat_pack", github: "bowerbird-app/flatpack", tag: "v0.1.10"
+
 gem "puma"
 
 gem "sqlite3"
 gem "pg" # PostgreSQL adapter for devcontainer
 
 gem "propshaft"
+
+gem "importmap-rails"
+gem "turbo-rails"
+gem "stimulus-rails"
 
 # Code coverage
 gem "simplecov", require: false

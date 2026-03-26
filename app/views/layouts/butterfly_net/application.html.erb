@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="height: 100%;">
 <head>
   <title>ButterflyNet - Error Tracking Dashboard</title>
   <meta charset="utf-8">
@@ -11,12 +11,54 @@
 
   <%= stylesheet_link_tag "butterfly_net/application", media: "all" %>
   <%= stylesheet_link_tag "butterfly_net/vendor/apexcharts", media: "all" %>
+  <%= stylesheet_link_tag "flat_pack/variables", "data-turbo-track": "reload" %>
+  <%= stylesheet_link_tag "flat_pack/rich_text", "data-turbo-track": "reload" %>
   <%= javascript_include_tag "butterfly_net/vendor/apexcharts.min", defer: true %>
   <%= javascript_include_tag "butterfly_net/infinite_scroll", defer: true %>
+  <%= javascript_importmap_tags if respond_to?(:javascript_importmap_tags) %>
 </head>
-<body class="font-sans text-sm leading-normal text-gray-800 bg-gray-100 m-0 p-0">
-  <div class="max-w-7xl mx-auto p-5">
-    <%= yield %>
-  </div>
+<body class="font-sans text-sm leading-normal m-0 p-0" style="height: 100%;">
+  <%= render FlatPack::SidebarLayout::Component.new(side: :left, storage_key: "butterfly-net-sidebar") do |layout| %>
+    <% layout.sidebar do %>
+      <%= render FlatPack::Sidebar::Component.new do |sidebar| %>
+        <% sidebar.header do %>
+          <%= render FlatPack::Sidebar::Header::Component.new(brand_abbr: "BN", title: "ButterflyNet") %>
+        <% end %>
+
+        <% sidebar.items do %>
+          <nav class="py-4 space-y-1">
+            <%= render FlatPack::Sidebar::Item::Component.new(
+              label: "Errors",
+              href: butterfly_net.dashboard_index_path,
+              icon: :exclamation_circle,
+              active: controller_name == "dashboard" && action_name != "analytics"
+            ) %>
+            <%= render FlatPack::Sidebar::Item::Component.new(
+              label: "Analytics",
+              href: butterfly_net.analytics_path,
+              icon: :rectangle_stack,
+              active: action_name == "analytics"
+            ) %>
+          </nav>
+        <% end %>
+      <% end %>
+    <% end %>
+
+    <% layout.top_nav do %>
+      <%= render FlatPack::TopNav::Component.new do |nav| %>
+        <% nav.left do %>
+          <span class="text-sm font-semibold">
+            <%= content_for?(:page_title) ? yield(:page_title) : "ButterflyNet" %>
+          </span>
+        <% end %>
+      <% end %>
+    <% end %>
+
+    <% layout.main do %>
+      <div class="p-6">
+        <%= yield %>
+      </div>
+    <% end %>
+  <% end %>
 </body>
 </html>

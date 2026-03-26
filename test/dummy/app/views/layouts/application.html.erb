@@ -20,8 +20,10 @@
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app %>
-  </head>
+    <%= stylesheet_link_tag "flat_pack/variables", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "flat_pack/rich_text", "data-turbo-track": "reload" %>
 
+    <%= javascript_importmap_tags %>
   <body>
     <%= yield %>
   </body>
