@@ -73,7 +73,7 @@
                 <%= render FlatPack::Button::Component.new(text: "Refresh Blame Info", style: :default, size: :sm, url: fetch_blame_dashboard_path(@error_log, force: true), method: :post) %>
               </div>
             <% else %>
-              <p class="text-sm text-gray-500 italic">No git blame information available.</p>
+              <p class="text-sm text-gray-500 italic">Git blame information could not be fetched automatically, or is not yet available.</p>
               <div class="mt-5">
                 <%= render FlatPack::Button::Component.new(text: "Fetch Git Blame", style: :primary, size: :sm, url: fetch_blame_dashboard_path(@error_log), method: :post) %>
               </div>
