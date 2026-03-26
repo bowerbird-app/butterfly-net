@@ -15,6 +15,11 @@ ButterflyNet is a self-hosted error tracking dashboard for Rails applications. I
 - **Git Blame Integration**: Automatically fetch (on error creation) or manually trigger git blame to identify who introduced the error
 - **GitHub Issue Integration**: Create enriched GitHub issues directly from the dashboard, including code context, environment info, and occurrence counts; supports filing issues in upstream bowerbird-app gem repos
 
+## Requirements
+
+- **Ruby** 3.2+
+- **Rails** 7.1+
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -35,6 +40,25 @@ Run the migration to create the error logs table:
 bin/rails butterfly_net:install:migrations
 bin/rails db:migrate
 ```
+
+## Upgrading from v0.5.0 to v0.6.0
+
+This release adds **Rails 7.1 compatibility**. ButterflyNet now supports Rails 7.1 and above.
+
+### No Breaking Changes
+
+The upgrade is fully backward compatible. No database migrations, configuration changes, or code updates are required.
+
+### Rails 7.1+ Users
+
+If you are running Rails 7.1, 7.2, or another pre-8 version, you can now use ButterflyNet. Add it to your `Gemfile` and follow the standard installation instructions above.
+
+### New Dependency Constraints
+
+- `flat_pack` upgraded to `v0.1.11` (Rails 7 compatible, includes full Heroicons v2 icon set)
+- `minitest` pinned to `< 6` — required because `minitest` 6.x removed `minitest/mock` into a separate gem; this ensures compatibility with standard test setups
+
+---
 
 ## Upgrading from v0.4.0 to v0.5.0
 
