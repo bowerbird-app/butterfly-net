@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-26
+
+### Added
+- **Rails 7.1 Compatibility**: ButterflyNet now supports Rails 7.1 and above (previously required Rails 8.1+)
+  - Lowered gemspec Rails dependency from `>= 8.1.1` to `>= 7.1`
+  - Updated all migrations from `Migration[8.1]` to `Migration[7.1]`
+  - Added `test/dummy-rails-7/` app for CI testing against Rails 7.1
+  - New `test-rails-7` CI job runs the full test suite against Rails 7.1 / Ruby 3.2 and 3.3
+
+### Changed
+- Upgraded `flat_pack` from `v0.1.10` to `v0.1.11`, which itself adds Rails 7 compatibility and the full Heroicons v2 icon set
+- Pinned `minitest` to `< 6` to preserve `minitest/mock` support (`minitest` 6.x removed `mock` into a separate gem)
+
 ## [0.5.0] - 2026-03-26
 
 ### Added
