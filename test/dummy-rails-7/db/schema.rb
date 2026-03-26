@@ -29,11 +29,11 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_03_073919) do
     t.datetime "blame_commit_date"
     t.string "status", default: "open", null: false
     t.datetime "resolved_at"
-    t.index ["created_at"], name: "index_butterfly_net_error_logs_on_created_at"
-    t.index ["exception_class"], name: "index_butterfly_net_error_logs_on_exception_class"
-    t.index ["github_issue_number"], name: "index_butterfly_net_error_logs_on_github_issue_number"
-    t.index ["resolved_at"], name: "index_butterfly_net_error_logs_on_resolved_at"
-    t.index ["status"], name: "index_butterfly_net_error_logs_on_status"
+    t.index [ "created_at" ], name: "index_butterfly_net_error_logs_on_created_at"
+    t.index [ "exception_class" ], name: "index_butterfly_net_error_logs_on_exception_class"
+    t.index [ "github_issue_number" ], name: "index_butterfly_net_error_logs_on_github_issue_number"
+    t.index [ "resolved_at" ], name: "index_butterfly_net_error_logs_on_resolved_at"
+    t.index [ "status" ], name: "index_butterfly_net_error_logs_on_status"
   end
 
   create_table "butterfly_net_error_occurrences", force: :cascade do |t|
@@ -44,10 +44,10 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_03_073919) do
     t.string "user_agent"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["created_at"], name: "index_butterfly_net_error_occurrences_on_created_at"
-    t.index ["error_log_id"], name: "index_butterfly_net_error_occurrences_on_error_log_id"
-    t.index ["user_email"], name: "index_butterfly_net_error_occurrences_on_user_email"
-    t.index ["user_id"], name: "index_butterfly_net_error_occurrences_on_user_id"
+    t.index [ "created_at" ], name: "index_butterfly_net_error_occurrences_on_created_at"
+    t.index [ "error_log_id" ], name: "index_butterfly_net_error_occurrences_on_error_log_id"
+    t.index [ "user_email" ], name: "index_butterfly_net_error_occurrences_on_user_email"
+    t.index [ "user_id" ], name: "index_butterfly_net_error_occurrences_on_user_id"
   end
 
   add_foreign_key "butterfly_net_error_occurrences", "butterfly_net_error_logs", column: "error_log_id"
