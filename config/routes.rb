@@ -11,6 +11,7 @@ ButterflyNet::Engine.routes.draw do
     get "summary"
     get "top_errors"
     get "time_series"
+    get "top_affected_users"
   end
 
   # Analytics dashboard view

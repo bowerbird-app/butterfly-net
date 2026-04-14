@@ -42,10 +42,11 @@
       const query = buildAnalyticsQuery();
 
       // Fetch all data in parallel
-      const [summaryData, topErrorsData, timeSeriesData] = await Promise.all([
+      const [summaryData, topErrorsData, timeSeriesData, topAffectedUsersData] = await Promise.all([
         fetch('/butterfly_net/analytics/summary' + query).then(r => r.json()),
         fetch('/butterfly_net/analytics/top_errors' + query).then(r => r.json()),
-        fetch('/butterfly_net/analytics/time_series' + query).then(r => r.json())
+        fetch('/butterfly_net/analytics/time_series' + query).then(r => r.json()),
+        fetch('/butterfly_net/analytics/top_affected_users' + query).then(r => r.json())
       ]);
 
       // Render all components
@@ -53,6 +54,7 @@
       renderStatusChart(summaryData.status_breakdown);
       renderTopErrorsChart(topErrorsData.top_errors);
       renderUsersChart(timeSeriesData.affected_users);
+      renderTopAffectedUsersTable(topAffectedUsersData.top_affected_users);
       renderOccurrencesChart(timeSeriesData.occurrences);
       renderNewErrorsChart(timeSeriesData.new_errors);
     } catch (error) {
@@ -245,6 +247,43 @@
 
     const chart = new ApexCharts(document.querySelector("#users-chart"), options);
     chart.render();
+  }
+
+  function renderTopAffectedUsersTable(data) {
+    var container = document.getElementById('top-affected-users-table');
+    if (!container) return;
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p class="text-center text-gray-500 py-4">No affected users in this period</p>';
+      return;
+    }
+
+    var html = '<div class="overflow-hidden rounded-lg border border-gray-200">' +
+      '<table class="w-full table-fixed divide-y divide-gray-200">' +
+      '<thead class="bg-gray-50"><tr>' +
+      '<th class="w-16 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>' +
+      '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>' +
+      '<th class="w-32 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Occurrences</th>' +
+      '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var bgClass = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+      html += '<tr class="' + bgClass + '">' +
+        '<td class="w-16 px-6 py-3 text-sm text-gray-500">' + (i + 1) + '</td>' +
+        '<td class="px-6 py-3 text-sm text-gray-900 truncate">' + escapeHtml(row.email) + '</td>' +
+        '<td class="w-32 px-6 py-3 text-sm text-gray-900 text-right font-medium">' + row.count + '</td>' +
+        '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
   }
 
   function renderOccurrencesChart(data) {

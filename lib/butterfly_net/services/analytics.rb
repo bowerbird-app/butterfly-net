@@ -160,6 +160,20 @@ module ButterflyNet
         end
       end
 
+      # Returns top N most affected users by occurrence count in the configured range
+      # @param limit [Integer] number of users to return (default: 10)
+      # @return [Array<Hash>] array of { email: "user@example.com", count: 5 }
+      def top_affected_users(limit: 10)
+        scope = occurrences_in_range_scope.where.not(user_email: [nil, ""])
+
+        scope
+          .group(:user_email)
+          .order("count_all DESC")
+          .limit(limit)
+          .count
+          .map { |email, count| { email: email, count: count } }
+      end
+
       # Returns total occurrences in the configured range
       # @return [Integer]
       def total_occurrences

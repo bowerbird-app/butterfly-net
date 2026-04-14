@@ -40,6 +40,16 @@ module ButterflyNet
       }
     end
 
+    # Returns top 10 most affected users by occurrence count
+    # GET /butterfly_net/analytics/top_affected_users
+    def top_affected_users
+      limit = params[:limit]&.to_i || 10
+
+      render json: {
+        top_affected_users: @analytics.top_affected_users(limit: limit)
+      }
+    end
+
     private
 
     # Parses date range from params (defaults to past 7 days) and initializes the analytics service.
