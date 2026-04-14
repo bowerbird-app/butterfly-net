@@ -2,22 +2,34 @@
 
 <%= render FlatPack::PageHeader::Component.new(title: "Analytics", subtitle: @date_range.label) %>
 
-<div class="mb-8 rounded-lg border border-gray-200 bg-white p-4">
-  <%= form_with url: butterfly_net.analytics_path, method: :get, local: true, html: { class: "flex flex-col gap-4 sm:flex-row sm:items-end" } do %>
-    <div class="flex-1">
-      <label for="analytics-start-date" class="mb-2 block text-sm font-medium text-gray-700">Start date</label>
-      <%= date_field_tag :start_date, @date_range.start_date.iso8601, id: "analytics-start-date", class: "w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900" %>
-    </div>
-    <div class="flex-1">
-      <label for="analytics-end-date" class="mb-2 block text-sm font-medium text-gray-700">End date</label>
-      <%= date_field_tag :end_date, @date_range.end_date.iso8601, id: "analytics-end-date", class: "w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900" %>
-    </div>
-    <div class="flex gap-3">
-      <%= submit_tag "Apply", class: "inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-text" %>
-      <%= link_to "Reset", butterfly_net.analytics_path, class: "inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700" %>
-    </div>
+<%= render FlatPack::Card::Component.new(style: :default, class: "mb-8") do |card| %>
+  <% card.body do %>
+    <%= form_with url: butterfly_net.analytics_path, method: :get, local: true, html: { class: "flex flex-col gap-4 sm:flex-row sm:items-end" } do %>
+      <div class="flex-1">
+        <%= render FlatPack::DateInput::Component.new(
+          name: :start_date,
+          value: @date_range.start_date,
+          label: "Start date",
+          max: Date.current,
+          id: "analytics-start-date"
+        ) %>
+      </div>
+      <div class="flex-1">
+        <%= render FlatPack::DateInput::Component.new(
+          name: :end_date,
+          value: @date_range.end_date,
+          label: "End date",
+          max: Date.current,
+          id: "analytics-end-date"
+        ) %>
+      </div>
+      <div class="flex gap-3">
+        <%= render FlatPack::Button::Component.new(text: "Apply", style: :primary, size: :md, type: "submit") %>
+        <%= render FlatPack::Button::Component.new(text: "Reset", style: :default, size: :md, url: butterfly_net.analytics_path) %>
+      </div>
+    <% end %>
   <% end %>
-</div>
+<% end %>
 
 <%= render FlatPack::Grid::Component.new(cols: 4, gap: :lg, id: "kpi-cards", class: "mb-8") do %>
         <!-- Cards will be populated by JavaScript -->
