@@ -23,16 +23,19 @@ class ButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTest
     json_response = JSON.parse(response.body)
 
     assert_not_nil json_response["total_open_errors"]
-    assert_not_nil json_response["total_affected_users_today"]
+    assert_not_nil json_response["total_affected_users"]
     assert_not_nil json_response["mean_time_to_resolution"]
-    assert_not_nil json_response["total_occurrences_today"]
+    assert_not_nil json_response["total_occurrences"]
     assert_not_nil json_response["status_breakdown"]
   end
 
   test "summary returns correct open error count" do
-    ButterflyNet::ErrorLog.create!(exception_class: "Error1", message: "msg1", status: "open")
-    ButterflyNet::ErrorLog.create!(exception_class: "Error2", message: "msg2", status: "open")
-    ButterflyNet::ErrorLog.create!(exception_class: "Error3", message: "msg3", status: "resolved")
+    e1 = ButterflyNet::ErrorLog.create!(exception_class: "Error1", message: "msg1", status: "open")
+    e2 = ButterflyNet::ErrorLog.create!(exception_class: "Error2", message: "msg2", status: "open")
+    e3 = ButterflyNet::ErrorLog.create!(exception_class: "Error3", message: "msg3", status: "resolved")
+    e1.occurrences.create!(created_at: Time.current)
+    e2.occurrences.create!(created_at: Time.current)
+    e3.occurrences.create!(created_at: Time.current)
 
     get butterfly_net.analytics_summary_path
 
@@ -43,8 +46,10 @@ class ButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "summary returns status breakdown" do
-    ButterflyNet::ErrorLog.create!(exception_class: "Error1", message: "msg1", status: "open")
-    ButterflyNet::ErrorLog.create!(exception_class: "Error2", message: "msg2", status: "in_progress")
+    e1 = ButterflyNet::ErrorLog.create!(exception_class: "Error1", message: "msg1", status: "open")
+    e2 = ButterflyNet::ErrorLog.create!(exception_class: "Error2", message: "msg2", status: "in_progress")
+    e1.occurrences.create!(created_at: Time.current)
+    e2.occurrences.create!(created_at: Time.current)
 
     get butterfly_net.analytics_summary_path
 
@@ -122,8 +127,11 @@ class ButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "time_series respects days parameter" do
-    get butterfly_net.analytics_time_series_path(days: 14)
+  test "time_series respects date range parameters" do
+    start_date = (Date.current - 13).iso8601
+    end_date = Date.current.iso8601
+
+    get butterfly_net.analytics_time_series_path(start_date: start_date, end_date: end_date)
 
     assert_response :success
     json_response = JSON.parse(response.body)
@@ -140,9 +148,43 @@ class ButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTest
     json_response = JSON.parse(response.body)
 
     assert_equal 0, json_response["total_open_errors"]
-    assert_equal 0, json_response["total_affected_users_today"]
+    assert_equal 0, json_response["total_affected_users"]
     assert_equal 0.0, json_response["mean_time_to_resolution"]
-    assert_equal 0, json_response["total_occurrences_today"]
+    assert_equal 0, json_response["total_occurrences"]
+  end
+
+  test "summary respects date range parameters" do
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RangeError", message: "msg", status: "open")
+    in_range_time = 2.days.ago
+    out_of_range_time = 12.days.ago
+
+    error_log.occurrences.create!(user_id: "recent-user", created_at: in_range_time)
+    error_log.occurrences.create!(user_id: "old-user", created_at: out_of_range_time)
+
+    get butterfly_net.analytics_summary_path,
+      params: { start_date: 6.days.ago.to_date.iso8601, end_date: Date.current.iso8601 }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+
+    assert_equal 1, json_response["total_open_errors"]
+    assert_equal 1, json_response["total_affected_users"]
+    assert_equal 1, json_response["total_occurrences"]
+  end
+
+  test "time_series respects explicit date range parameters" do
+    error_log = ButterflyNet::ErrorLog.create!(exception_class: "RangeError", message: "msg")
+    error_log.occurrences.create!(user_id: "recent-user", created_at: 2.days.ago)
+    error_log.occurrences.create!(user_id: "old-user", created_at: 10.days.ago)
+
+    get butterfly_net.analytics_time_series_path,
+      params: { start_date: 6.days.ago.to_date.iso8601, end_date: Date.current.iso8601 }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+
+    assert_equal 7, json_response["affected_users"].length
+    assert_equal 1, json_response["affected_users"].sum { |item| item["count"] }
   end
 
   test "top_errors handles empty database gracefully" do
@@ -180,24 +222,23 @@ class ButterflyNet::AnalyticsControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil json_response["top_errors"]
   end
 
-  test "time_series handles invalid days parameter" do
-    get butterfly_net.analytics_time_series_path(days: "invalid")
+  test "time_series handles invalid date parameters" do
+    get butterfly_net.analytics_time_series_path(start_date: "invalid", end_date: "also-invalid")
 
     assert_response :success
     json_response = JSON.parse(response.body)
 
-    # "invalid".to_i returns 0, which is falsy, but &.to_i returns 0 (not nil)
-    # So 0 will be used as-is. The test should verify it returns empty or 0-day data
-    assert_equal 0, json_response["affected_users"].length
+    # Invalid dates fall back to the default 7-day range
+    assert_equal 7, json_response["affected_users"].length
   end
 
-  test "time_series handles zero days parameter" do
-    get butterfly_net.analytics_time_series_path(days: 0)
+  test "time_series defaults to 7 days without date parameters" do
+    get butterfly_net.analytics_time_series_path
 
     assert_response :success
     json_response = JSON.parse(response.body)
 
-    # When days is 0, should return 0 days of data
-    assert_equal 0, json_response["affected_users"].length
+    # No params means default 7-day range from AnalyticsDateRange
+    assert_equal 7, json_response["affected_users"].length
   end
 end

@@ -9,9 +9,70 @@ module ButterflyNet
   module Services
     class AnalyticsTest < ActiveSupport::TestCase
       setup do
-        @analytics = Analytics.new
         ErrorOccurrence.delete_all
         ErrorLog.delete_all
+        @analytics = Analytics.new
+      end
+
+      test "total_open_errors filters by configured occurrence range" do
+        recent_error = ErrorLog.create!(exception_class: "RecentError", message: "msg", status: "open")
+        stale_error = ErrorLog.create!(exception_class: "StaleError", message: "msg", status: "open")
+
+        recent_error.occurrences.create!(created_at: 2.days.ago)
+        stale_error.occurrences.create!(created_at: 14.days.ago)
+
+        analytics = Analytics.new(start_time: 6.days.ago.beginning_of_day, end_time: Time.current.end_of_day)
+
+        assert_equal 1, analytics.total_open_errors
+      end
+
+      test "total_affected_users filters by configured range" do
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+        error_log.occurrences.create!(user_id: "recent-user", created_at: 1.day.ago)
+        error_log.occurrences.create!(user_id: "old-user", created_at: 10.days.ago)
+
+        analytics = Analytics.new(start_time: 6.days.ago.beginning_of_day, end_time: Time.current.end_of_day)
+
+        assert_equal 1, analytics.total_affected_users
+      end
+
+      test "total_occurrences filters by configured range" do
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+        2.times { error_log.occurrences.create!(created_at: 2.days.ago) }
+        3.times { error_log.occurrences.create!(created_at: 12.days.ago) }
+
+        analytics = Analytics.new(start_time: 6.days.ago.beginning_of_day, end_time: Time.current.end_of_day)
+
+        assert_equal 2, analytics.total_occurrences
+      end
+
+      test "top_frequent_errors filters occurrences by configured range" do
+        recent_error = ErrorLog.create!(exception_class: "RecentError", message: "msg")
+        old_error = ErrorLog.create!(exception_class: "OldError", message: "msg")
+
+        3.times { recent_error.occurrences.create!(created_at: 1.day.ago) }
+        5.times { old_error.occurrences.create!(created_at: 20.days.ago) }
+
+        analytics = Analytics.new(start_time: 6.days.ago.beginning_of_day, end_time: Time.current.end_of_day)
+
+        top_errors = analytics.top_frequent_errors(limit: 10)
+
+        assert_equal 1, top_errors.length
+        assert_equal "RecentError", top_errors.first[:exception_class]
+      end
+
+      test "time series methods accept explicit start and end dates" do
+        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
+        error_log.occurrences.create!(user_id: "in-range", created_at: 2.days.ago)
+        error_log.occurrences.create!(user_id: "out-of-range", created_at: 10.days.ago)
+
+        users = @analytics.affected_users_over_time(start_date: 6.days.ago.to_date, end_date: Date.current)
+        occurrences = @analytics.error_occurrences_over_time(start_date: 6.days.ago.to_date, end_date: Date.current)
+
+        assert_equal 7, users.length
+        assert_equal 7, occurrences.length
+        assert_equal 1, users.sum { |item| item[:count] }
+        assert_equal 1, occurrences.sum { |item| item[:count] }
       end
 
       test "total_open_errors returns count of open errors" do
@@ -20,34 +81,6 @@ module ButterflyNet
         ErrorLog.create!(exception_class: "Error3", message: "msg3", status: "resolved")
 
         assert_equal 2, @analytics.total_open_errors
-      end
-
-      test "total_affected_users_today returns unique users affected today" do
-        today = Time.current.beginning_of_day
-        yesterday = today - 1.day
-
-        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
-
-        # Create occurrences today
-        error_log.occurrences.create!(user_id: "user1", created_at: today)
-        error_log.occurrences.create!(user_id: "user1", created_at: today + 1.hour)
-        error_log.occurrences.create!(user_id: "user2", created_at: today)
-
-        # Create occurrence yesterday (should not count)
-        error_log.occurrences.create!(user_id: "user3", created_at: yesterday)
-
-        assert_equal 2, @analytics.total_affected_users_today
-      end
-
-      test "total_affected_users_today handles users with emails" do
-        today = Time.current.beginning_of_day
-
-        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
-
-        error_log.occurrences.create!(user_email: "user1@test.com", created_at: today)
-        error_log.occurrences.create!(user_email: "user2@test.com", created_at: today)
-
-        assert_equal 2, @analytics.total_affected_users_today
       end
 
       test "mean_time_to_resolution calculates average in hours" do
@@ -136,7 +169,7 @@ module ButterflyNet
           error_log.occurrences.create!(user_id: "user3", created_at: date.to_time)
         end
 
-        data = @analytics.affected_users_over_time(days: 5)
+        data = @analytics.affected_users_over_time(start_date: 4.days.ago.to_date, end_date: Date.current)
 
         assert_equal 5, data.length
 
@@ -160,7 +193,7 @@ module ButterflyNet
           2.times { error_log.occurrences.create!(created_at: date.to_time) }
         end
 
-        data = @analytics.error_occurrences_over_time(days: 5)
+        data = @analytics.error_occurrences_over_time(start_date: 4.days.ago.to_date, end_date: Date.current)
 
         assert_equal 5, data.length
 
@@ -191,7 +224,7 @@ module ButterflyNet
           )
         end
 
-        data = @analytics.new_errors_over_time(days: 5)
+        data = @analytics.new_errors_over_time(start_date: 4.days.ago.to_date, end_date: Date.current)
 
         assert_equal 5, data.length
 
@@ -200,39 +233,6 @@ module ButterflyNet
 
         today_data = data.find { |d| d[:date] == Date.current.to_s }
         assert_equal 1, today_data[:count]
-      end
-
-      test "total_occurrences_today returns count of occurrences today" do
-        today = Time.current.beginning_of_day
-        yesterday = today - 1.day
-
-        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
-
-        3.times { error_log.occurrences.create!(created_at: today) }
-        2.times { error_log.occurrences.create!(created_at: yesterday) }
-
-        assert_equal 3, @analytics.total_occurrences_today
-      end
-
-      test "total_affected_users_today counts users by ID and email separately" do
-        today = Time.current.beginning_of_day
-
-        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
-
-        # Some users with IDs
-        error_log.occurrences.create!(user_id: "user1", created_at: today)
-        error_log.occurrences.create!(user_id: "user2", created_at: today)
-
-        # Some users with emails (different from IDs)
-        error_log.occurrences.create!(user_email: "email1@test.com", created_at: today)
-        error_log.occurrences.create!(user_email: "email2@test.com", created_at: today)
-
-        # Duplicate IDs and emails should be counted once
-        error_log.occurrences.create!(user_id: "user1", created_at: today)
-        error_log.occurrences.create!(user_email: "email1@test.com", created_at: today)
-
-        # Total unique identifiers: user1, user2, email1@test.com, email2@test.com = 4
-        assert_equal 4, @analytics.total_affected_users_today
       end
 
       test "mean_time_to_resolution handles mix of resolved and unresolved errors" do
@@ -287,7 +287,7 @@ module ButterflyNet
           error_log.occurrences.create!(user_id: "user1", created_at: date.to_time)
         end
 
-        data = @analytics.affected_users_over_time(days: 5)
+        data = @analytics.affected_users_over_time(start_date: 4.days.ago.to_date, end_date: Date.current)
 
         # Should have 5 days of data
         assert_equal 5, data.length
@@ -308,7 +308,7 @@ module ButterflyNet
         today = Date.current
         5.times { error_log.occurrences.create!(created_at: today.to_time) }
 
-        data = @analytics.error_occurrences_over_time(days: 1)
+        data = @analytics.error_occurrences_over_time(start_date: Date.current, end_date: Date.current)
 
         today_data = data.find { |d| d[:date] == today.to_s }
         assert_equal 5, today_data[:count]
@@ -326,7 +326,7 @@ module ButterflyNet
           3.times { error.occurrences.create!(created_at: date.to_time) }
         end
 
-        data = @analytics.new_errors_over_time(days: 5)
+        data = @analytics.new_errors_over_time(start_date: 4.days.ago.to_date, end_date: Date.current)
 
         three_days_ago_data = data.find { |d| d[:date] == 3.days.ago.to_date.to_s }
         # Should count the error only once, not 3 times
@@ -352,23 +352,6 @@ module ButterflyNet
         assert_equal 0, @analytics.total_open_errors
       end
 
-      test "total_affected_users_today counts by both ID and email as separate identifiers" do
-        today = Time.current.beginning_of_day
-
-        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
-
-        # User with both ID and email - should count as one unique identifier (the ID)
-        error_log.occurrences.create!(user_id: "user1", user_email: "user1@test.com", created_at: today)
-
-        # Same user ID, different email - should count as same user (by ID)
-        error_log.occurrences.create!(user_id: "user1", user_email: "different@test.com", created_at: today)
-
-        # Different user with only email
-        error_log.occurrences.create!(user_id: nil, user_email: "user2@test.com", created_at: today)
-
-        # user1 (via ID) and user2@test.com = 2 unique identifiers
-        assert_equal 2, @analytics.total_affected_users_today
-      end
 
       test "mean_time_to_resolution ignores errors without resolved_at" do
         # Create resolved error without resolved_at (shouldn't happen but test edge case)
@@ -408,7 +391,7 @@ module ButterflyNet
         # Another occurrence of same user
         error_log.occurrences.create!(user_id: "user1", user_email: "user1@test.com", created_at: date.to_time + 1.hour)
 
-        data = @analytics.affected_users_over_time(days: 5)
+        data = @analytics.affected_users_over_time(start_date: 4.days.ago.to_date, end_date: Date.current)
 
         two_days_ago_data = data.find { |d| d[:date] == date.to_s }
         # Should count user1 only once
@@ -416,7 +399,7 @@ module ButterflyNet
       end
 
       test "error_occurrences_over_time handles empty results" do
-        data = @analytics.error_occurrences_over_time(days: 7)
+        data = @analytics.error_occurrences_over_time(start_date: 6.days.ago.to_date, end_date: Date.current)
 
         assert_equal 7, data.length
         # All days should have 0 count
@@ -434,22 +417,10 @@ module ButterflyNet
           )
         end
 
-        data = @analytics.new_errors_over_time(days: 5)
+        data = @analytics.new_errors_over_time(start_date: 4.days.ago.to_date, end_date: Date.current)
 
         three_days_ago_data = data.find { |d| d[:date] == date.to_s }
         assert_equal 5, three_days_ago_data[:count]
-      end
-
-      test "total_occurrences_today counts all occurrences regardless of user" do
-        today = Time.current.beginning_of_day
-        error_log = ErrorLog.create!(exception_class: "Error", message: "msg")
-
-        # Mix of occurrences with and without user tracking
-        3.times { error_log.occurrences.create!(created_at: today) }
-        2.times { error_log.occurrences.create!(user_id: "user1", created_at: today) }
-        1.times { error_log.occurrences.create!(user_email: "user@test.com", created_at: today) }
-
-        assert_equal 6, @analytics.total_occurrences_today
       end
 
       test "mean_time_to_resolution handles very short resolution times" do
@@ -504,7 +475,7 @@ module ButterflyNet
           error_log.occurrences.create!(user_id: "user#{days_ago}", created_at: date.to_time)
         end
 
-        data = @analytics.affected_users_over_time(days: 10)
+        data = @analytics.affected_users_over_time(start_date: 9.days.ago.to_date, end_date: Date.current)
 
         # Verify results are sorted by date
         dates = data.map { |d| d[:date] }
@@ -520,7 +491,7 @@ module ButterflyNet
           error_log.occurrences.create!(created_at: date.to_time)
         end
 
-        data = @analytics.error_occurrences_over_time(days: 7)
+        data = @analytics.error_occurrences_over_time(start_date: 6.days.ago.to_date, end_date: Date.current)
 
         # Verify results are sorted by date
         dates = data.map { |d| d[:date] }

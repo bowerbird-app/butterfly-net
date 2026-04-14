@@ -20,13 +20,32 @@
     fetchAndRenderAnalytics();
   }
 
+  function buildAnalyticsQuery() {
+    const params = new URLSearchParams();
+    const startDate = document.getElementById('analytics-start-date');
+    const endDate = document.getElementById('analytics-end-date');
+
+    if (startDate && startDate.value) {
+      params.set('start_date', startDate.value);
+    }
+
+    if (endDate && endDate.value) {
+      params.set('end_date', endDate.value);
+    }
+
+    const queryString = params.toString();
+    return queryString ? '?' + queryString : '';
+  }
+
   async function fetchAndRenderAnalytics() {
     try {
+      const query = buildAnalyticsQuery();
+
       // Fetch all data in parallel
       const [summaryData, topErrorsData, timeSeriesData] = await Promise.all([
-        fetch('/butterfly_net/analytics/summary').then(r => r.json()),
-        fetch('/butterfly_net/analytics/top_errors').then(r => r.json()),
-        fetch('/butterfly_net/analytics/time_series').then(r => r.json())
+        fetch('/butterfly_net/analytics/summary' + query).then(r => r.json()),
+        fetch('/butterfly_net/analytics/top_errors' + query).then(r => r.json()),
+        fetch('/butterfly_net/analytics/time_series' + query).then(r => r.json())
       ]);
 
       // Render all components
@@ -44,8 +63,8 @@
 
   function renderSummaryCards(data) {
     document.getElementById('kpi-open-errors').textContent = data.total_open_errors;
-    document.getElementById('kpi-affected-users').textContent = data.total_affected_users_today;
-    document.getElementById('kpi-occurrences').textContent = data.total_occurrences_today;
+    document.getElementById('kpi-affected-users').textContent = data.total_affected_users;
+    document.getElementById('kpi-occurrences').textContent = data.total_occurrences;
     
     const mttr = data.mean_time_to_resolution;
     const mttrText = mttr === 0 ? 'N/A' : mttr.toFixed(1) + ' hrs';

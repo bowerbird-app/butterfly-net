@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "butterfly_net/analytics_date_range"
+
 module ButterflyNet
   # Controller for the error tracking dashboard.
   # Provides index (list of errors) and show (error details) actions.
@@ -72,7 +74,10 @@ module ButterflyNet
 
     # Renders the analytics dashboard view
     def analytics
-      # No data needed here; JavaScript will fetch data from API endpoints
+      @date_range = AnalyticsDateRange.from_params(
+        start_date: params[:start_date],
+        end_date: params[:end_date]
+      )
     end
 
     private

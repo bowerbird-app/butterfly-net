@@ -6,31 +6,27 @@ module ButterflyNet
   module Services
     # Service for calculating analytics and metrics for the error tracking dashboard
     class Analytics
+      def initialize(start_time: nil, end_time: nil)
+        @start_time = start_time
+        @end_time = end_time
+      end
+
       # Returns the count of errors with status 'open'
       # @return [Integer]
       def total_open_errors
-        ErrorLog.with_status("open").count
-      end
+        scope = ErrorLog.with_status("open")
 
-      # Returns the count of unique users affected by errors today
-      # @return [Integer]
-      def total_affected_users_today
-        today_start = Time.current.beginning_of_day
-
-        # Count distinct users by collecting unique user_id or user_email
-        # A user is identified by either user_id or user_email, whichever is present
-        occurrences = ErrorOccurrence
-          .where("created_at >= ?", today_start)
-          .select(:user_id, :user_email)
-
-        unique_users = Set.new
-        occurrences.each do |occ|
-          # Use user_id as primary identifier, fall back to user_email
-          identifier = occ.user_id.presence || occ.user_email
-          unique_users.add(identifier) if identifier.present?
+        if time_range?
+          scope = scope.joins(:occurrences).merge(occurrences_in_range_scope).distinct
         end
 
-        unique_users.size
+        scope.count
+      end
+
+      # Returns the count of unique users affected by errors in the configured range
+      # @return [Integer]
+      def total_affected_users
+        count_unique_users(occurrences_in_range_scope)
       end
 
       # Returns the average time from error creation to resolution in hours
@@ -40,6 +36,10 @@ module ButterflyNet
         resolved_errors = ErrorLog
           .where(status: "resolved")
           .where.not(resolved_at: nil)
+
+        if time_range?
+          resolved_errors = resolved_errors.where(resolved_at: @start_time..@end_time)
+        end
 
         return 0.0 if resolved_errors.count.zero?
 
@@ -54,7 +54,13 @@ module ButterflyNet
       # Returns a hash with counts for each error status
       # @return [Hash] { "open" => 5, "in_progress" => 3, "resolved" => 10, "dismissed" => 2 }
       def error_status_breakdown
-        breakdown = ErrorLog.group(:status).count
+        breakdown_scope = ErrorLog.all
+
+        if time_range?
+          breakdown_scope = breakdown_scope.joins(:occurrences).merge(occurrences_in_range_scope).distinct
+        end
+
+        breakdown = breakdown_scope.group(:status).count
 
         # Ensure all statuses are present in the result
         ErrorLog::STATUSES.each do |status|
@@ -68,12 +74,16 @@ module ButterflyNet
       # @param limit [Integer] number of errors to return (default: 10)
       # @return [Array<Hash>] array of hashes with error info and occurrence count
       def top_frequent_errors(limit: 10)
-        ErrorLog
+        scope = ErrorLog
           .joins(:occurrences)
           .select("butterfly_net_error_logs.*, COUNT(butterfly_net_error_occurrences.id) as occurrence_count")
           .group("butterfly_net_error_logs.id")
           .order("occurrence_count DESC")
           .limit(limit)
+
+        scope = scope.merge(occurrences_in_range_scope) if time_range?
+
+        scope
           .map do |error|
             {
               id: error.id,
@@ -85,44 +95,33 @@ module ButterflyNet
           end
       end
 
-      # Returns daily affected user counts for the past N days
-      # @param days [Integer] number of days to look back (default: 30)
+      # Returns daily affected user counts for the given date range
       # @return [Array<Hash>] array of { date: "2023-12-01", count: 5 }
-      def affected_users_over_time(days: 30)
-        start_date = (Date.current - days.days).beginning_of_day
+      def affected_users_over_time(start_date:, end_date:)
 
-        # Count distinct users per day
-        results = {}
-        (0...days).each do |i|
-          date = Date.current - i.days
-          date_str = date.to_s
+        users_by_date = Hash.new { |hash, key| hash[key] = Set.new }
 
-          # Get all occurrences for this date
-          occurrences = ErrorOccurrence
-            .where("DATE(created_at) = ?", date)
-            .select(:user_id, :user_email)
+        ErrorOccurrence
+          .where(created_at: start_date.beginning_of_day..end_date.end_of_day)
+          .select(:created_at, :user_id, :user_email)
+          .each do |occurrence|
+            identifier = occurrence.user_id.presence || occurrence.user_email
+            next if identifier.blank?
 
-          # Count unique users using user_id or user_email as identifier
-          unique_users = Set.new
-          occurrences.each do |occ|
-            identifier = occ.user_id.presence || occ.user_email
-            unique_users.add(identifier) if identifier.present?
+            users_by_date[occurrence.created_at.to_date.to_s].add(identifier)
           end
 
-          results[date_str] = unique_users.size
+        build_date_series(start_date, end_date) do |date|
+          users_by_date[date.to_s].size
         end
-
-        results.sort.map { |date, count| { date: date, count: count } }
       end
 
-      # Returns daily error occurrence counts for the past N days
-      # @param days [Integer] number of days to look back (default: 30)
+      # Returns daily error occurrence counts for the given date range
       # @return [Array<Hash>] array of { date: "2023-12-01", count: 15 }
-      def error_occurrences_over_time(days: 30)
-        start_date = (Date.current - days.days).beginning_of_day
+      def error_occurrences_over_time(start_date:, end_date:)
 
         occurrences_by_date = ErrorOccurrence
-          .where("created_at >= ?", start_date)
+          .where(created_at: start_date.beginning_of_day..end_date.end_of_day)
           .group("DATE(created_at)")
           .count
 
@@ -134,23 +133,17 @@ module ButterflyNet
         end
 
         # Fill in missing dates with zero counts
-        results = {}
-        (0...days).each do |i|
-          date = (Date.current - i.days).to_s
-          results[date] = normalized_occurrences[date] || 0
+        build_date_series(start_date, end_date) do |date|
+          normalized_occurrences[date.to_s] || 0
         end
-
-        results.sort.map { |date, count| { date: date, count: count } }
       end
 
-      # Returns daily new error discovery counts for the past N days
-      # @param days [Integer] number of days to look back (default: 30)
+      # Returns daily new error discovery counts for the given date range
       # @return [Array<Hash>] array of { date: "2023-12-01", count: 3 }
-      def new_errors_over_time(days: 30)
-        start_date = (Date.current - days.days).beginning_of_day
+      def new_errors_over_time(start_date:, end_date:)
 
         errors_by_date = ErrorLog
-          .where("created_at >= ?", start_date)
+          .where(created_at: start_date.beginning_of_day..end_date.end_of_day)
           .group("DATE(created_at)")
           .count
 
@@ -162,20 +155,50 @@ module ButterflyNet
         end
 
         # Fill in missing dates with zero counts
-        results = {}
-        (0...days).each do |i|
-          date = (Date.current - i.days).to_s
-          results[date] = normalized_errors[date] || 0
+        build_date_series(start_date, end_date) do |date|
+          normalized_errors[date.to_s] || 0
         end
-
-        results.sort.map { |date, count| { date: date, count: count } }
       end
 
-      # Returns total occurrences today
+      # Returns total occurrences in the configured range
       # @return [Integer]
-      def total_occurrences_today
-        today_start = Time.current.beginning_of_day
-        ErrorOccurrence.where("created_at >= ?", today_start).count
+      def total_occurrences
+        occurrences_in_range_scope.count
+      end
+
+      private
+
+      def time_range?
+        @start_time.present? && @end_time.present?
+      end
+
+      def occurrences_in_range_scope
+        scope = ErrorOccurrence.all
+        return scope unless time_range?
+
+        scope.where(created_at: @start_time..@end_time)
+      end
+
+      def count_unique_users(scope)
+        unique_users = Set.new
+
+        scope.select(:user_id, :user_email).each do |occurrence|
+          identifier = occurrence.user_id.presence || occurrence.user_email
+          unique_users.add(identifier) if identifier.present?
+        end
+
+        unique_users.size
+      end
+
+      def build_date_series(start_date, end_date)
+        return [] if end_date < start_date
+
+        (start_date..end_date).map do |date|
+          {
+            date: date.to_s,
+            count: yield(date)
+          }
+        end
       end
     end
   end

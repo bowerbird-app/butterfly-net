@@ -267,6 +267,17 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     get butterfly_net.analytics_path
 
     assert_response :success
+    assert_select "input[name=?][value=?]", "start_date", 6.days.ago.to_date.iso8601
+    assert_select "input[name=?][value=?]", "end_date", Date.current.iso8601
+    assert_match /Past 7 Days/, response.body
+  end
+
+  test "analytics action preserves selected date range" do
+    get butterfly_net.analytics_path, params: { start_date: "2026-04-01", end_date: "2026-04-14" }
+
+    assert_response :success
+    assert_select "input[name=?][value=?]", "start_date", "2026-04-01"
+    assert_select "input[name=?][value=?]", "end_date", "2026-04-14"
   end
 
   test "show displays GitHub configuration status" do
