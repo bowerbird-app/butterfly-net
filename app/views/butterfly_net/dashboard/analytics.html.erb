@@ -91,6 +91,18 @@
           <% end %>
         </div>
 
+        <!-- Top 10 Most Affected Users -->
+        <div class="md:col-span-2">
+          <%= render FlatPack::Card::Component.new(style: :default, hover: :subtle, class: "shadow-md dark:shadow-lg") do |card| %>
+            <% card.header do %>
+              <h3 class="text-lg font-semibold">Top 10 Most Affected Users (<%= @date_range.label %>)</h3>
+            <% end %>
+            <% card.body do %>
+              <div id="top-affected-users-table"></div>
+            <% end %>
+          <% end %>
+        </div>
+
         <!-- Error Occurrences Over Time -->
         <div class="md:col-span-2">
           <%= render FlatPack::Card::Component.new(style: :default, hover: :subtle, class: "shadow-md dark:shadow-lg") do |card| %>
