@@ -98,7 +98,6 @@ module ButterflyNet
       # Returns daily affected user counts for the given date range
       # @return [Array<Hash>] array of { date: "2023-12-01", count: 5 }
       def affected_users_over_time(start_date:, end_date:)
-
         users_by_date = Hash.new { |hash, key| hash[key] = Set.new }
 
         ErrorOccurrence
@@ -119,7 +118,6 @@ module ButterflyNet
       # Returns daily error occurrence counts for the given date range
       # @return [Array<Hash>] array of { date: "2023-12-01", count: 15 }
       def error_occurrences_over_time(start_date:, end_date:)
-
         occurrences_by_date = ErrorOccurrence
           .where(created_at: start_date.beginning_of_day..end_date.end_of_day)
           .group("DATE(created_at)")
@@ -141,7 +139,6 @@ module ButterflyNet
       # Returns daily new error discovery counts for the given date range
       # @return [Array<Hash>] array of { date: "2023-12-01", count: 3 }
       def new_errors_over_time(start_date:, end_date:)
-
         errors_by_date = ErrorLog
           .where(created_at: start_date.beginning_of_day..end_date.end_of_day)
           .group("DATE(created_at)")
@@ -164,7 +161,7 @@ module ButterflyNet
       # @param limit [Integer] number of users to return (default: 10)
       # @return [Array<Hash>] array of { email: "user@example.com", count: 5 }
       def top_affected_users(limit: 10)
-        scope = occurrences_in_range_scope.where.not(user_email: [nil, ""])
+        scope = occurrences_in_range_scope.where.not(user_email: [ nil, "" ])
 
         scope
           .group(:user_email)
