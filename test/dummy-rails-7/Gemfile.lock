@@ -1,4 +1,15 @@
 GIT
+  remote: https://github.com/bowerbird-app/flatpack-checker.git
+  revision: 427d9c3e4a388b5536fb6e93501995ea8668f97c
+  tag: 0.1.1
+  specs:
+    flatpack-checker (0.1.1)
+      nokogiri (>= 1.16)
+      railties (>= 6.1)
+      rainbow (>= 3.1)
+      rake (>= 13.0)
+
+GIT
   remote: https://github.com/bowerbird-app/flatpack.git
   revision: 5a0931f44f567bf2124f643064f38928e644cacd
   tag: v0.1.11
@@ -349,6 +360,7 @@ PLATFORMS
 DEPENDENCIES
   butterfly_net!
   flat_pack!
+  flatpack-checker!
   importmap-rails
   minitest (< 6)
   propshaft
