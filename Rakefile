@@ -20,11 +20,22 @@ APP_RAKEFILE = File.expand_path("test/#{ENV.fetch('DUMMY_APP', 'dummy')}/Rakefil
 load "rails/tasks/engine.rake"
 
 require "bundler/gem_tasks"
-require "flatpack/checker"
+
+begin
+  require "flatpack/checker"
+rescue LoadError
+  FLATPACK_CHECKER_AVAILABLE = false
+else
+  FLATPACK_CHECKER_AVAILABLE = true
+end
 
 namespace :flatpack do
   desc "Scan app/views, app/components, and app/helpers for raw HTML that should be migrated to Flatpack components"
   task :check do
+    unless FLATPACK_CHECKER_AVAILABLE
+      abort "flatpack-checker is not installed in the active bundle"
+    end
+
     unless Flatpack::Checker.supported_environment?
       puts Rainbow("flatpack-checker only runs in development and test environments.").yellow
       next
@@ -37,6 +48,10 @@ namespace :flatpack do
   namespace :install do
     desc "Create a GitHub Actions workflow for flatpack:check when .github/workflows exists"
     task :github_actions do
+      unless FLATPACK_CHECKER_AVAILABLE
+        abort "flatpack-checker is not installed in the active bundle"
+      end
+
       Flatpack::Checker::WorkflowInstaller.new(root: __dir__).call
     end
   end
