@@ -1,0 +1,22 @@
+name: Flatpack Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  flatpack-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3.8"
+          bundler-cache: true
+
+      - name: Run Flatpack check
+        run: bundle exec rake flatpack:check
