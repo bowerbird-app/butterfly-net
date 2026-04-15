@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+env:
+  BUNDLE_GITHUB__COM: x-access-token:${{ secrets.BOWERBIRD_ORG_CI_TOKEN }}
+
 jobs:
   flatpack-check:
     runs-on: ubuntu-latest
