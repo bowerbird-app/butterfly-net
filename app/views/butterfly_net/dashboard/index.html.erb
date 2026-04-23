@@ -1,7 +1,7 @@
 <% content_for :page_title, "Error Tracking" %>
 
 <%= render FlatPack::PageHeader::Component.new(title: "Errors", subtitle: "Total errors: #{@pagy.count}") %>
-<div class="mt-8" id="error-logs-container">
+<div class="mt-8" id="error-logs-container" data-current-page="<%= @pagy.page %>" data-has-more="<%= @pagy.next.present? %>">
   <%= render FlatPack::Table::Component.new(data: @error_logs) do |table| %>
     <% table.column(title: "Status", html: ->(error_log) {
       case error_log.status

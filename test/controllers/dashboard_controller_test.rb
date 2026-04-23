@@ -28,6 +28,8 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match /RuntimeError/, response.body
     assert_match /Test error message/, response.body
+    assert_match(/data-current-page="1"/, response.body)
+    assert_match(/data-has-more="false"/, response.body)
   end
 
   test "index paginates results" do
@@ -46,6 +48,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     # Should show first 25 items (most recent, Error29 down to Error5)
     assert_match /Error29/, response.body
     assert_match /Error5/, response.body
+    assert_match(/data-has-more="true"/, response.body)
     # Should not show item 26 on first page (Error4 and earlier)
     assert_no_match /Error4/, response.body
 
@@ -326,6 +329,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert error_data["has_github_issue"]
     assert_not_nil error_data["occurrence_count"]
     assert_not_nil error_data["last_seen"]
+    assert_equal butterfly_net.dashboard_path(error_log), error_data["dashboard_path"]
   end
 
   test "fetch_blame handles errors during blame retrieval" do
