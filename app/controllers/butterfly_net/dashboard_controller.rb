@@ -107,7 +107,7 @@ module ButterflyNet
 
       {
         id: error_log.id,
-        dashboard_path: dashboard_path(error_log),
+        dashboard_path: ButterflyNet::Engine.routes.url_helpers.dashboard_path(error_log),
         status: error_log.status,
         exception_class: error_log.exception_class,
         message: error_log.message,
