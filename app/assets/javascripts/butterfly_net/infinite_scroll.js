@@ -144,10 +144,10 @@
 
     getStatusBadge(status) {
       const badges = {
-        'open': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border bg-[var(--badge-primary-background-color)] text-[var(--badge-primary-text-color)] border-[var(--badge-primary-border-color)] text-sm px-3 py-1">Open</span>',
+        'open': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border whitespace-nowrap bg-[var(--badge-primary-background-color)] text-[var(--badge-primary-text-color)] border-[var(--badge-primary-border-color)] text-sm px-3 py-1">Open</span>',
         'in_progress': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border whitespace-nowrap bg-[var(--badge-warning-background-color)] text-[var(--badge-warning-text-color)] border-[var(--badge-warning-border-color)] text-sm px-3 py-1">In Progress</span>',
-        'resolved': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border bg-[var(--badge-success-background-color)] text-[var(--badge-success-text-color)] border-[var(--badge-success-border-color)] text-sm px-3 py-1">Resolved</span>',
-        'dismissed': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border bg-[var(--badge-default-background-color)] text-[var(--badge-default-text-color)] border-[var(--badge-default-border-color)] text-sm px-3 py-1">Dismissed</span>'
+        'resolved': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border whitespace-nowrap bg-[var(--badge-success-background-color)] text-[var(--badge-success-text-color)] border-[var(--badge-success-border-color)] text-sm px-3 py-1">Resolved</span>',
+        'dismissed': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border whitespace-nowrap bg-[var(--badge-default-background-color)] text-[var(--badge-default-text-color)] border-[var(--badge-default-border-color)] text-sm px-3 py-1">Dismissed</span>'
       };
       return badges[status] || badges['open'];
     }
