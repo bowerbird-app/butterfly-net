@@ -1,5 +1,5 @@
 // Infinite scroll implementation for error logs
-(function() {
+(function () {
   'use strict';
 
   class InfiniteScroll {
@@ -8,16 +8,16 @@
       this.tableBody = container.querySelector('tbody');
       this.loadingIndicator = container.querySelector('#loading-indicator');
       this.sentinel = container.querySelector('#scroll-sentinel');
-      this.currentPage = 1;
+      this.currentPage = parseInt(container.dataset.currentPage || '1', 10);
       this.isLoading = false;
-      this.hasMore = true;
+      this.hasMore = container.dataset.hasMore === 'true';
       this.baseUrl = options.baseUrl || window.location.pathname;
 
       this.init();
     }
 
     init() {
-      if (!this.sentinel) return;
+      if (!this.sentinel || !this.hasMore) return;
 
       // Use IntersectionObserver to detect when user scrolls near the bottom
       this.observer = new IntersectionObserver(
@@ -85,49 +85,51 @@
 
     createRow(errorLog) {
       const row = document.createElement('tr');
-      
+      row.className = 'hover:bg-[var(--table-row-hover-background-color)] transition-colors duration-fast';
+
       // Status badge
       const statusCell = document.createElement('td');
-      statusCell.className = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6';
+      statusCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
       statusCell.innerHTML = this.getStatusBadge(errorLog.status);
-      
+
       // Exception class
       const exceptionCell = document.createElement('td');
-      exceptionCell.className = 'whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900';
+      exceptionCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
       exceptionCell.textContent = errorLog.exception_class;
-      
+
       // Message
       const messageCell = document.createElement('td');
-      messageCell.className = 'px-3 py-4 text-sm text-gray-500';
+      messageCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
       messageCell.textContent = this.truncate(errorLog.message, 60);
-      
+
       // Occurrences
       const occurrencesCell = document.createElement('td');
-      occurrencesCell.className = 'whitespace-nowrap px-3 py-4 text-sm text-gray-900';
+      occurrencesCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
       occurrencesCell.innerHTML = `<span class="font-medium">${errorLog.occurrence_count}</span>`;
-      
+
       // Users Affected
       const usersCell = document.createElement('td');
-      usersCell.className = 'whitespace-nowrap px-3 py-4 text-sm text-gray-900';
-      usersCell.innerHTML = errorLog.affected_count > 0 
+      usersCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      usersCell.innerHTML = errorLog.affected_count > 0
         ? `<span class="font-medium">${errorLog.affected_count}</span>`
         : '<span class="text-gray-400">—</span>';
-      
+
       // Last Seen
       const lastSeenCell = document.createElement('td');
-      lastSeenCell.className = 'whitespace-nowrap px-3 py-4 text-sm text-gray-500';
+      lastSeenCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
       lastSeenCell.textContent = this.timeAgo(errorLog.last_seen);
-      
+
       // GitHub Issue
       const githubCell = document.createElement('td');
-      githubCell.className = 'whitespace-nowrap px-3 py-4 text-sm';
+      githubCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
       githubCell.innerHTML = this.getGithubIssueHtml(errorLog);
-      
+
       // View link
       const viewCell = document.createElement('td');
-      viewCell.className = 'relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6';
-      viewCell.innerHTML = `<a href="${this.baseUrl}/${errorLog.id}" class="text-blue-600 hover:text-blue-900">View</a>`;
-      
+      viewCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      const dashboardPath = errorLog.dashboard_path || `${this.baseUrl.replace(/\/$/, '')}/dashboard/${errorLog.id}`;
+      viewCell.innerHTML = `<a href="${dashboardPath}" class="inline-flex items-center justify-center gap-2 rounded-[var(--button-border-radius)] font-medium cursor-pointer transition-colors duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--button-focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--button-focus-ring-offset-color)] disabled:pointer-events-none disabled:opacity-[var(--button-disabled-opacity)] px-[var(--button-padding-x-sm)] py-[var(--button-padding-y-sm)] text-xs bg-[var(--button-ghost-background-color)] hover:bg-[var(--button-ghost-hover-background-color)] text-[var(--button-ghost-text-color)] border border-[var(--button-ghost-border-color)]">View</a>`;
+
       row.appendChild(statusCell);
       row.appendChild(exceptionCell);
       row.appendChild(messageCell);
@@ -136,16 +138,16 @@
       row.appendChild(lastSeenCell);
       row.appendChild(githubCell);
       row.appendChild(viewCell);
-      
+
       return row;
     }
 
     getStatusBadge(status) {
       const badges = {
-        'open': '<span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">Open</span>',
-        'in_progress': '<span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">In Progress</span>',
-        'resolved': '<span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Resolved</span>',
-        'dismissed': '<span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">Dismissed</span>'
+        'open': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border whitespace-nowrap bg-[var(--badge-primary-background-color)] text-[var(--badge-primary-text-color)] border-[var(--badge-primary-border-color)] text-sm px-3 py-1">Open</span>',
+        'in_progress': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border whitespace-nowrap bg-[var(--badge-warning-background-color)] text-[var(--badge-warning-text-color)] border-[var(--badge-warning-border-color)] text-sm px-3 py-1">In Progress</span>',
+        'resolved': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border whitespace-nowrap bg-[var(--badge-success-background-color)] text-[var(--badge-success-text-color)] border-[var(--badge-success-border-color)] text-sm px-3 py-1">Resolved</span>',
+        'dismissed': '<span class="inline-flex items-center gap-1 rounded-full font-medium transition-colors duration-base border whitespace-nowrap bg-[var(--badge-default-background-color)] text-[var(--badge-default-text-color)] border-[var(--badge-default-border-color)] text-sm px-3 py-1">Dismissed</span>'
       };
       return badges[status] || badges['open'];
     }
@@ -207,7 +209,7 @@
   }
 
   // Initialize infinite scroll when DOM is ready
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     const container = document.getElementById('error-logs-container');
     if (container) {
       new InfiniteScroll(container);
