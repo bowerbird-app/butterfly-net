@@ -23,7 +23,7 @@ GIT
 PATH
   remote: .
   specs:
-    butterfly_net (0.6.0)
+    butterfly_net (0.6.1)
       faraday-retry
       flat_pack (~> 0.1)
       importmap-rails
@@ -365,7 +365,6 @@ PLATFORMS
 DEPENDENCIES
   butterfly_net!
   flat_pack!
-  flatpack-checker!
   importmap-rails
   minitest (< 6)
   pg
