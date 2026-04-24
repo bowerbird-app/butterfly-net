@@ -365,6 +365,7 @@ PLATFORMS
 DEPENDENCIES
   butterfly_net!
   flat_pack!
+  flatpack-checker!
   importmap-rails
   minitest (< 6)
   pg
