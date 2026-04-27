@@ -100,6 +100,9 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_match /undefined method/, response.body
     assert_match /line1/, response.body
     assert_match /Test Browser/, response.body
+    assert_match(/Dashboard/, response.body)
+    assert_match(/Error Details/, response.body)
+    assert_match(%r{href="#{Regexp.escape(butterfly_net.grouped_dashboard_index_path(exception_class: "NoMethodError"))}"}, response.body)
   end
 
   test "grouped displays individual errors for an exception class" do

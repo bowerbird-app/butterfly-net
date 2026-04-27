@@ -4,6 +4,7 @@
 
 <%= render FlatPack::Breadcrumb::Component.new(separator: :chevron) do |breadcrumb| %>
   <% breadcrumb.item(text: "Dashboard", href: dashboard_index_path) %>
+  <% breadcrumb.item(text: @error_log.exception_class, href: grouped_dashboard_index_path(exception_class: @error_log.exception_class)) %>
   <% breadcrumb.item(text: "Error Details") %>
 <% end %>
 

@@ -114,6 +114,27 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     assert_equal "GET", error_log.request_params["method"]
   end
 
+  test "simulator unique links create distinct error logs" do
+    assert_raises(RuntimeError) do
+      get "/test/runtime_error", params: { unique: "1" }
+    end
+
+    first_log = ButterflyNet::ErrorLog.order(:created_at).last
+
+    assert_raises(RuntimeError) do
+      get "/test/runtime_error", params: { unique: "1" }
+    end
+
+    second_log = ButterflyNet::ErrorLog.order(:created_at).last
+
+    assert_equal 2, ButterflyNet::ErrorLog.count
+    assert_equal "RuntimeError", first_log.exception_class
+    assert_equal "RuntimeError", second_log.exception_class
+    refute_equal first_log.message, second_log.message
+    assert_includes first_log.message, "Something went wrong"
+    assert_includes second_log.message, "Something went wrong"
+  end
+
   test "middleware intercepts exceptions early in the stack" do
     # This test verifies that the middleware is actually active in the stack
     # by confirming an exception is caught and stored before being re-raised
