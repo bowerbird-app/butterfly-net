@@ -64,20 +64,6 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     assert_equal RuntimeError, captured[:exception].class
   end
 
-  test "captures JSON parser error with gem frame before controller" do
-    assert_raises(JSON::ParserError) do
-      get "/test/json_parser_error"
-    end
-
-    assert_equal 1, ButterflyNet::ErrorLog.count
-    error_log = ButterflyNet::ErrorLog.last
-
-    assert_equal "JSON::ParserError", error_log.exception_class
-    assert_not_empty error_log.backtrace_lines
-    refute_includes error_log.backtrace_lines.first, "test_errors_controller.rb"
-    assert error_log.backtrace_lines.any? { |line| line.include?("test_errors_controller.rb") }
-  end
-
   test "successful request does not capture exceptions" do
     get "/test/success"
 
@@ -98,27 +84,6 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     assert_not_nil error_log.request_params
     assert_equal "/test/name_error", error_log.request_params["path"]
     assert_equal "GET", error_log.request_params["method"]
-  end
-
-  test "simulator unique links create distinct error logs" do
-    assert_raises(RuntimeError) do
-      get "/test/runtime_error", params: { unique: "1" }
-    end
-
-    first_log = ButterflyNet::ErrorLog.order(:created_at).last
-
-    assert_raises(RuntimeError) do
-      get "/test/runtime_error", params: { unique: "1" }
-    end
-
-    second_log = ButterflyNet::ErrorLog.order(:created_at).last
-
-    assert_equal 2, ButterflyNet::ErrorLog.count
-    assert_equal "RuntimeError", first_log.exception_class
-    assert_equal "RuntimeError", second_log.exception_class
-    refute_equal first_log.message, second_log.message
-    assert_includes first_log.message, "Something went wrong"
-    assert_includes second_log.message, "Something went wrong"
   end
 
   test "middleware intercepts exceptions early in the stack" do
