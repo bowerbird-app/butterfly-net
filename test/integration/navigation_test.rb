@@ -64,11 +64,39 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     assert_equal RuntimeError, captured[:exception].class
   end
 
+  test "captures JSON parser error with gem frame before controller" do
+    assert_raises(JSON::ParserError) do
+      get "/test/json_parser_error"
+    end
+
+    assert_equal 1, ButterflyNet::ErrorLog.count
+    error_log = ButterflyNet::ErrorLog.last
+
+    assert_equal "JSON::ParserError", error_log.exception_class
+    assert_not_empty error_log.backtrace_lines
+    refute_includes error_log.backtrace_lines.first, "test_errors_controller.rb"
+    assert error_log.backtrace_lines.any? { |line| line.include?("test_errors_controller.rb") }
+  end
+
   test "successful request does not capture exceptions" do
     get "/test/success"
 
     assert_response :success
     assert_equal 0, ButterflyNet.captured_exceptions.length
+  end
+
+  test "error simulator page renders trigger links" do
+    get "/errors"
+
+    assert_response :success
+    assert_match /Error Simulator/, response.body
+    assert_match %r{/test/name_error}, response.body
+    assert_match %r{/test/no_method_error}, response.body
+    assert_match %r{/test/argument_error}, response.body
+    assert_match %r{/test/type_error}, response.body
+    assert_match %r{/test/runtime_error}, response.body
+    assert_match %r{/test/json_parser_error}, response.body
+    assert_match %r{/test/success}, response.body
   end
 
   test "persists error to database" do

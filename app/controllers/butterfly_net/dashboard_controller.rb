@@ -7,12 +7,26 @@ module ButterflyNet
   # Provides index (list of errors) and show (error details) actions.
   class DashboardController < ApplicationController
     def index
-      @pagy, @error_logs = pagy(ErrorLog.recent.includes(:occurrences), limit: 25)
+      @pagy, @error_rows = grouped_error_rows
 
       respond_to do |format|
         format.html
         format.json do
-          # Preload affected user counts to avoid N+1 queries
+          render json: {
+            error_logs: @error_rows,
+            pagy: pagy_metadata(@pagy)
+          }
+        end
+      end
+    end
+
+    def grouped
+      @exception_class = params[:exception_class].to_s
+      @pagy, @error_logs = pagy(ErrorLog.by_exception_class(@exception_class).recent.includes(:occurrences), limit: 25)
+
+      respond_to do |format|
+        format.html
+        format.json do
           error_log_ids = @error_logs.pluck(:id)
           affected_counts = calculate_affected_counts(error_log_ids)
 
@@ -108,6 +122,7 @@ module ButterflyNet
       {
         id: error_log.id,
         dashboard_path: ButterflyNet::Engine.routes.url_helpers.dashboard_path(error_log),
+        grouped: false,
         status: error_log.status,
         exception_class: error_log.exception_class,
         message: error_log.message,
@@ -120,7 +135,83 @@ module ButterflyNet
       }
     end
 
+    def grouped_error_rows
+      total_count = ErrorLog.distinct.count(:exception_class)
+      pagy = Pagy.new(count: total_count, page: params[:page], limit: 25)
+
+      exception_classes = grouped_exception_class_scope
+        .offset(pagy.offset)
+        .limit(pagy.limit)
+        .pluck("#{error_logs_table}.exception_class")
+
+      [ pagy, build_grouped_error_rows(exception_classes) ]
+    end
+
+    def grouped_exception_class_scope
+      ErrorLog
+        .left_outer_joins(:occurrences)
+        .group("#{error_logs_table}.exception_class")
+        .order(Arel.sql("MAX(COALESCE(#{error_occurrences_table}.created_at, #{error_logs_table}.created_at)) DESC"))
+    end
+
+    def build_grouped_error_rows(exception_classes)
+      return [] if exception_classes.empty?
+
+      aggregate_rows = ErrorLog
+        .left_outer_joins(:occurrences)
+        .where(exception_class: exception_classes)
+        .group("#{error_logs_table}.exception_class")
+        .pluck(
+          "#{error_logs_table}.exception_class",
+          Arel.sql("COUNT(DISTINCT #{error_logs_table}.id)"),
+          Arel.sql("MIN(#{error_logs_table}.id)"),
+          Arel.sql("COUNT(#{error_occurrences_table}.id)"),
+          Arel.sql("COUNT(DISTINCT #{error_occurrences_table}.user_id)"),
+          Arel.sql("COUNT(DISTINCT #{error_occurrences_table}.user_email)"),
+          Arel.sql("MAX(COALESCE(#{error_occurrences_table}.created_at, #{error_logs_table}.created_at))")
+        )
+
+      aggregates_by_class = aggregate_rows.each_with_object({}) do |(exception_class, error_log_count, error_log_id, occurrence_count, user_count, email_count, last_seen), grouped_rows|
+        grouped_rows[exception_class] = {
+          error_log_count: error_log_count.to_i,
+          error_log_id: error_log_id,
+          occurrence_count: occurrence_count.to_i,
+          affected_count: [ user_count.to_i, email_count.to_i ].max,
+          last_seen: last_seen
+        }
+      end
+
+      unique_log_ids = aggregates_by_class.values
+        .select { |row| row[:error_log_count] == 1 }
+        .map { |row| row[:error_log_id] }
+
+      unique_logs = ErrorLog.where(id: unique_log_ids).index_by(&:id)
+
+      exception_classes.map do |exception_class|
+        aggregate = aggregates_by_class.fetch(exception_class)
+        unique = aggregate[:error_log_count] == 1
+        error_log = unique_logs[aggregate[:error_log_id]]
+
+        {
+          id: unique ? error_log.id : nil,
+          dashboard_path: unique ? dashboard_path(error_log) : grouped_dashboard_index_path(exception_class: exception_class),
+          grouped: !unique,
+          status: unique ? error_log.status : nil,
+          exception_class: exception_class,
+          message: unique ? error_log.message : nil,
+          occurrence_count: aggregate[:occurrence_count],
+          affected_count: aggregate[:affected_count],
+          last_seen: aggregate[:last_seen] || error_log&.created_at,
+          github_issue_number: unique ? error_log.github_issue_number : nil,
+          github_issue_url: unique ? error_log.github_issue_url : nil,
+          has_github_issue: unique && error_log.has_github_issue?
+        }
+      end
+    end
+
     def calculate_affected_counts(error_log_ids)
+      return {} if error_log_ids.empty?
+
       # Calculate affected user counts in a single query to avoid N+1
       user_counts = ErrorOccurrence
         .where(error_log_id: error_log_ids)
@@ -151,6 +242,14 @@ module ButterflyNet
         next: pagy.next,
         prev: pagy.prev
       }
+    end
+
+    def error_logs_table
+      ErrorLog.table_name
+    end
+
+    def error_occurrences_table
+      ErrorOccurrence.table_name
     end
   end
 end

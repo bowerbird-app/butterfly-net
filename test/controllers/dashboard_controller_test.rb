@@ -27,9 +27,34 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_match /RuntimeError/, response.body
-    assert_match /Test error message/, response.body
+    assert_no_match /Status/, response.body
+    assert_no_match /Message/, response.body
+    assert_no_match /GitHub Issue/, response.body
     assert_match(/data-current-page="1"/, response.body)
     assert_match(/data-has-more="false"/, response.body)
+  end
+
+  test "index groups duplicate exception classes into a single row" do
+    first_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    first_error.occurrences.create!(user_id: "user-1")
+
+    second_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /other"
+    )
+    second_error.occurrences.create!(user_id: "user-2")
+
+    get butterfly_net.dashboard_index_path
+
+    assert_response :success
+    assert_equal 1, response.body.scan(/ActionController::RoutingError/).length
+    assert_no_match(/No route matches \/missing/, response.body)
+    assert_no_match(/No route matches \/other/, response.body)
+    assert_match(/>2</, response.body)
+    assert_match(%r{href="#{Regexp.escape(butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError"))}"}, response.body)
   end
 
   test "index paginates results" do
@@ -77,6 +102,27 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_match /Test Browser/, response.body
   end
 
+  test "grouped displays individual errors for an exception class" do
+    matching_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    matching_error.occurrences.create!(user_id: "user-1")
+
+    ButterflyNet::ErrorLog.create!(
+      exception_class: "OtherError",
+      message: "Ignore me"
+    )
+
+    get butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError")
+
+    assert_response :success
+    assert_match /ActionController::RoutingError/, response.body
+    assert_match /No route matches \/missing/, response.body
+    assert_no_match /Ignore me/, response.body
+    assert_match(%r{href="#{Regexp.escape(butterfly_net.dashboard_path(matching_error))}"}, response.body)
+  end
+
   test "root redirects to dashboard index" do
     get butterfly_net.root_path
 
@@ -114,6 +160,34 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     json_response = JSON.parse(response.body)
     error_data = json_response["error_logs"].first
     assert_equal 2, error_data["affected_count"]
+  end
+
+  test "index JSON groups duplicate exception classes" do
+    first_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    first_error.occurrences.create!(user_id: "user-1")
+
+    second_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /other"
+    )
+    second_error.occurrences.create!(user_id: "user-2")
+
+    get butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    assert_equal 1, json_response["error_logs"].length
+
+    error_data = json_response["error_logs"].first
+    assert_nil error_data["status"]
+    assert_nil error_data["message"]
+    assert_equal 2, error_data["occurrence_count"]
+    assert_equal 2, error_data["affected_count"]
+    assert_equal butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError"), error_data["dashboard_path"]
+    assert_equal true, error_data["grouped"]
   end
 
   test "fetch_blame retrieves blame info successfully" do
@@ -324,6 +398,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal "TestError", error_data["exception_class"]
     assert_equal "Test message", error_data["message"]
     assert_equal "open", error_data["status"]
+    assert_equal false, error_data["grouped"]
     assert_equal 123, error_data["github_issue_number"]
     assert_equal "https://github.com/test/repo/issues/123", error_data["github_issue_url"]
     assert error_data["has_github_issue"]
@@ -399,7 +474,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "index JSON handles errors with no occurrences" do
-    error_log = ButterflyNet::ErrorLog.create!(
+    ButterflyNet::ErrorLog.create!(
       exception_class: "NoOccurrenceError",
       message: "Test message"
     )

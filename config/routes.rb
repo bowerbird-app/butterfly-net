@@ -1,5 +1,9 @@
 ButterflyNet::Engine.routes.draw do
   resources :dashboard, only: [ :index, :show ] do
+    collection do
+      get :grouped
+    end
+
     member do
       post :fetch_blame
       post :create_issue
