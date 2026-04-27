@@ -258,13 +258,32 @@
         this.loadingIndicator.classList.add('hidden');
       }
     }
+
+    destroy() {
+      if (this.observer) {
+        this.observer.disconnect();
+      }
+    }
   }
 
-  // Initialize infinite scroll when DOM is ready
-  document.addEventListener('DOMContentLoaded', function () {
+  function initializeInfiniteScroll() {
     const container = document.getElementById('error-logs-container');
     if (container) {
-      new InfiniteScroll(container);
+      if (container._infiniteScroll) {
+        container._infiniteScroll.destroy();
+      }
+
+      container._infiniteScroll = new InfiniteScroll(container);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', initializeInfiniteScroll);
+  document.addEventListener('turbo:load', initializeInfiniteScroll);
+  document.addEventListener('turbo:before-cache', function () {
+    const container = document.getElementById('error-logs-container');
+    if (container && container._infiniteScroll) {
+      container._infiniteScroll.destroy();
+      delete container._infiniteScroll;
     }
   });
 })();
