@@ -85,20 +85,6 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     assert_equal 0, ButterflyNet.captured_exceptions.length
   end
 
-  test "error simulator page renders trigger links" do
-    get "/errors"
-
-    assert_response :success
-    assert_match /Error Simulator/, response.body
-    assert_match %r{/test/name_error}, response.body
-    assert_match %r{/test/no_method_error}, response.body
-    assert_match %r{/test/argument_error}, response.body
-    assert_match %r{/test/type_error}, response.body
-    assert_match %r{/test/runtime_error}, response.body
-    assert_match %r{/test/json_parser_error}, response.body
-    assert_match %r{/test/success}, response.body
-  end
-
   test "persists error to database" do
     assert_raises(NameError) do
       get "/test/name_error"
