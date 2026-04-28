@@ -121,9 +121,38 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_match /ActionController::RoutingError/, response.body
+    assert_match /Message grouped/, response.body
+    assert_match /IP address grouped/, response.body
     assert_match /No route matches \/missing/, response.body
     assert_no_match /Ignore me/, response.body
     assert_match(%r{href="#{Regexp.escape(butterfly_net.dashboard_path(matching_error))}"}, response.body)
+  end
+
+  test "grouped can switch to IP address grouped view" do
+    first_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    first_error.occurrences.create!(user_id: "user-1", request_params: { ip_address: "203.0.113.10" })
+
+    second_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /other"
+    )
+    second_error.occurrences.create!(user_id: "user-2", request_params: { ip_address: "203.0.113.10" })
+    second_error.occurrences.create!(user_id: "user-3", request_params: { ip_address: "198.51.100.25" })
+
+    get butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError", group_by: "ip")
+
+    assert_response :success
+    assert_match /Distinct IP addresses for this exception: 2/, response.body
+    assert_match /IP address: <span class="text-gray-900">203.0.113.10/, response.body
+    assert_match /IP address: <span class="text-gray-900">198.51.100.25/, response.body
+    assert_match /GitHub Issue/, response.body
+    assert_match /203.0.113.10/, response.body
+    assert_match /198.51.100.25/, response.body
+    assert_match /No route matches \/missing/, response.body
+    assert_match /No route matches \/other/, response.body
   end
 
   test "root redirects to dashboard index" do
@@ -191,6 +220,34 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal 2, error_data["affected_count"]
     assert_equal butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError"), error_data["dashboard_path"]
     assert_equal true, error_data["grouped"]
+  end
+
+  test "grouped JSON can be grouped by IP address" do
+    first_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    first_error.occurrences.create!(user_id: "user-1", request_params: { ip_address: "203.0.113.10" })
+
+    second_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /other"
+    )
+    second_error.occurrences.create!(user_email: "user@example.com", request_params: { ip_address: "203.0.113.10" })
+    second_error.occurrences.create!(request_params: { ip_address: "198.51.100.25" })
+
+    get butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError", group_by: "ip"), headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    assert_equal 2, json_response["error_logs"].length
+
+    first_group = json_response["error_logs"].find { |row| row["ip_address"] == "203.0.113.10" }
+    assert_equal 2, first_group["error_logs"].length
+
+    first_row = first_group["error_logs"].find { |row| row["message"] == "No route matches /missing" }
+    assert_equal 1, first_row["occurrence_count"]
+    assert_equal 1, first_row["affected_count"]
   end
 
   test "fetch_blame retrieves blame info successfully" do

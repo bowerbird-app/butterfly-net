@@ -1,58 +1,33 @@
 <% content_for :page_title, @exception_class %>
 
-<%= render FlatPack::PageHeader::Component.new(title: @exception_class, subtitle: "Distinct errors for this exception: #{@pagy.count}") %>
+<%= render FlatPack::PageHeader::Component.new(title: @exception_class, subtitle: @group_by == ButterflyNet::DashboardController::GROUP_BY_IP ? "Distinct IP addresses for this exception: #{@pagy.count}" : "Distinct errors for this exception: #{@pagy.count}") %>
 
 <%= render FlatPack::Breadcrumb::Component.new(separator: :chevron) do |breadcrumb| %>
   <% breadcrumb.item(text: "Dashboard", href: dashboard_index_path) %>
   <% breadcrumb.item(text: @exception_class) %>
 <% end %>
 
-<div class="mt-8" id="error-logs-container" data-current-page="<%= @pagy.page %>" data-has-more="<%= @pagy.next.present? %>" data-base-url="<%= grouped_dashboard_index_path(exception_class: @exception_class) %>" data-view-mode="grouped">
-  <%= render FlatPack::Table::Component.new(data: @error_logs) do |table| %>
-    <% table.column(title: "Status", html: ->(error_log) {
-      case error_log.status
-      when 'open'
-        render FlatPack::Badge::Component.new(text: "Open", style: :primary)
-      when 'in_progress'
-        render FlatPack::Badge::Component.new(text: "In Progress", style: :warning)
-      when 'resolved'
-        render FlatPack::Badge::Component.new(text: "Resolved", style: :success)
-      when 'dismissed'
-        render FlatPack::Badge::Component.new(text: "Dismissed", style: :default)
-      end
-    }) %>
-    <% table.column(title: "Exception", html: ->(error_log) { error_log.exception_class }) %>
-    <% table.column(title: "Message", html: ->(error_log) { truncate(error_log.message, length: 60) }) %>
-    <% table.column(title: "Occurrences", html: ->(error_log) {
-      content_tag(:span, error_log.occurrence_count, class: "font-medium")
-    }) %>
-    <% table.column(title: "Users Affected", html: ->(error_log) {
-      unique_users = error_log.occurrences.where.not(user_id: nil).distinct.count(:user_id)
-      unique_emails = error_log.occurrences.where.not(user_email: nil).distinct.count(:user_email)
-      affected_count = [unique_users, unique_emails].max
-      if affected_count > 0
-        content_tag(:span, affected_count, class: "font-medium")
-      else
-        content_tag(:span, "\u2014", class: "text-gray-400")
-      end
-    }) %>
-    <% table.column(title: "Last Seen", html: ->(error_log) {
-      last_occurrence = error_log.occurrences.order(created_at: :desc).first
-      last_occurrence ? time_ago_in_words(last_occurrence.created_at) + " ago" : time_ago_in_words(error_log.created_at) + " ago"
-    }) %>
-    <% table.column(title: "GitHub Issue", html: ->(error_log) {
-      if error_log.has_github_issue?
-        svg_path = content_tag(:path, nil, d: "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z")
-        svg = content_tag(:svg, svg_path, class: "h-5 w-5", fill: "currentColor", viewBox: "0 0 16 16")
-        number = content_tag(:span, "##{error_log.github_issue_number}", class: "font-medium")
-        render(FlatPack::Link::Component.new(href: error_log.github_issue_url, target: "_blank", class: "inline-flex items-center gap-1 text-gray-900 hover:text-gray-700")) { safe_join([svg, number]) }
-      else
-        content_tag(:span, "\u2014", class: "text-gray-400")
-      end
-    }) %>
-    <% table.column(title: "", html: ->(error_log) {
-      render FlatPack::Button::Component.new(text: "View", style: :ghost, size: :sm, url: dashboard_path(error_log))
-    }) %>
+<div class="mt-6 flex items-center gap-2 text-sm">
+  <% message_group_path = grouped_dashboard_index_path(exception_class: @exception_class, group_by: ButterflyNet::DashboardController::GROUP_BY_MESSAGE) %>
+  <% ip_group_path = grouped_dashboard_index_path(exception_class: @exception_class, group_by: ButterflyNet::DashboardController::GROUP_BY_IP) %>
+  <%= link_to "Message grouped", message_group_path, class: ["inline-flex items-center rounded-full border px-3 py-1.5 font-medium transition-colors", @group_by == ButterflyNet::DashboardController::GROUP_BY_MESSAGE ? "border-primary bg-primary text-primary-text" : "border-gray-300 text-gray-700 hover:border-gray-400 hover:text-gray-900"].join(" ") %>
+  <%= link_to "IP address grouped", ip_group_path, class: ["inline-flex items-center rounded-full border px-3 py-1.5 font-medium transition-colors", @group_by == ButterflyNet::DashboardController::GROUP_BY_IP ? "border-primary bg-primary text-primary-text" : "border-gray-300 text-gray-700 hover:border-gray-400 hover:text-gray-900"].join(" ") %>
+</div>
+
+<div class="mt-8" id="error-logs-container" data-current-page="<%= @pagy.page %>" data-has-more="<%= @pagy.next.present? %>" data-base-url="<%= grouped_dashboard_index_path(exception_class: @exception_class, group_by: @group_by) %>" data-view-mode="<%= @group_by == ButterflyNet::DashboardController::GROUP_BY_IP ? "grouped-ip" : "grouped-message" %>">
+  <% if @group_by == ButterflyNet::DashboardController::GROUP_BY_IP %>
+    <div data-ip-groups>
+      <% @error_logs.each do |group| %>
+        <section class="mb-8 last:mb-0">
+          <p class="mb-4 text-sm font-medium text-gray-700">
+            IP address: <span class="text-gray-900"><%= group[:ip_address] %></span>
+          </p>
+          <%= render "error_logs_table", error_logs: group[:error_logs] %>
+        </section>
+      <% end %>
+    </div>
+  <% else %>
+    <%= render "error_logs_table", error_logs: @error_logs %>
   <% end %>
   <div id="scroll-sentinel" style="height: 1px;"></div>
   <div id="loading-indicator" class="hidden text-center py-4">

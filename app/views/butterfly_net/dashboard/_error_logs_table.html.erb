@@ -1,0 +1,61 @@
+<%= render FlatPack::Table::Component.new(data: error_logs) do |table| %>
+  <% table.column(title: "Status", html: ->(error_log) {
+    hash_row = error_log.is_a?(Hash)
+    case hash_row ? error_log[:status] : error_log.status
+    when 'open'
+      render FlatPack::Badge::Component.new(text: "Open", style: :primary)
+    when 'in_progress'
+      render FlatPack::Badge::Component.new(text: "In Progress", style: :warning)
+    when 'resolved'
+      render FlatPack::Badge::Component.new(text: "Resolved", style: :success)
+    when 'dismissed'
+      render FlatPack::Badge::Component.new(text: "Dismissed", style: :default)
+    end
+  }) %>
+  <% table.column(title: "Exception", html: ->(error_log) { error_log.is_a?(Hash) ? error_log[:exception_class] : error_log.exception_class }) %>
+  <% table.column(title: "Message", html: ->(error_log) { truncate(error_log.is_a?(Hash) ? error_log[:message] : error_log.message, length: 60) }) %>
+  <% table.column(title: "Occurrences", html: ->(error_log) {
+    content_tag(:span, error_log.is_a?(Hash) ? error_log[:occurrence_count] : error_log.occurrence_count, class: "font-medium")
+  }) %>
+  <% table.column(title: "Users Affected", html: ->(error_log) {
+    if error_log.is_a?(Hash)
+      affected_count = error_log[:affected_count]
+    else
+      unique_users = error_log.occurrences.where.not(user_id: nil).distinct.count(:user_id)
+      unique_emails = error_log.occurrences.where.not(user_email: nil).distinct.count(:user_email)
+      affected_count = [unique_users, unique_emails].max
+    end
+
+    if affected_count > 0
+      content_tag(:span, affected_count, class: "font-medium")
+    else
+      content_tag(:span, "\u2014", class: "text-gray-400")
+    end
+  }) %>
+  <% table.column(title: "Last Seen", html: ->(error_log) {
+    if error_log.is_a?(Hash)
+      time_ago_in_words(error_log[:last_seen]) + " ago"
+    else
+      last_occurrence = error_log.occurrences.order(created_at: :desc).first
+      last_occurrence ? time_ago_in_words(last_occurrence.created_at) + " ago" : time_ago_in_words(error_log.created_at) + " ago"
+    end
+  }) %>
+  <% table.column(title: "GitHub Issue", html: ->(error_log) {
+    has_github_issue = error_log.is_a?(Hash) ? error_log[:has_github_issue] : error_log.has_github_issue?
+
+    if has_github_issue
+      svg_path = content_tag(:path, nil, d: "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z")
+      svg = content_tag(:svg, svg_path, class: "h-5 w-5", fill: "currentColor", viewBox: "0 0 16 16")
+      issue_number = error_log.is_a?(Hash) ? error_log[:github_issue_number] : error_log.github_issue_number
+      issue_url = error_log.is_a?(Hash) ? error_log[:github_issue_url] : error_log.github_issue_url
+      number = content_tag(:span, "##{issue_number}", class: "font-medium")
+      render(FlatPack::Link::Component.new(href: issue_url, target: "_blank", class: "inline-flex items-center gap-1 text-gray-900 hover:text-gray-700")) { safe_join([svg, number]) }
+    else
+      content_tag(:span, "\u2014", class: "text-gray-400")
+    end
+  }) %>
+  <% table.column(title: "", html: ->(error_log) {
+    dashboard_target = error_log.is_a?(Hash) ? error_log[:dashboard_path] : dashboard_path(error_log)
+    render FlatPack::Button::Component.new(text: "View", style: :ghost, size: :sm, url: dashboard_target)
+  }) %>
+<% end %>
