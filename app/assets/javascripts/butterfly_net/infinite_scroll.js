@@ -11,7 +11,8 @@
       this.currentPage = parseInt(container.dataset.currentPage || '1', 10);
       this.isLoading = false;
       this.hasMore = container.dataset.hasMore === 'true';
-      this.baseUrl = options.baseUrl || window.location.pathname;
+      this.baseUrl = options.baseUrl || container.dataset.baseUrl || window.location.pathname;
+      this.viewMode = container.dataset.viewMode || 'index';
 
       this.init();
     }
@@ -41,7 +42,8 @@
       this.showLoading();
 
       const nextPage = this.currentPage + 1;
-      const url = `${this.baseUrl}?page=${nextPage}`;
+      const separator = this.baseUrl.includes('?') ? '&' : '?';
+      const url = `${this.baseUrl}${separator}page=${nextPage}`;
 
       try {
         const response = await fetch(url, {
@@ -87,10 +89,56 @@
       const row = document.createElement('tr');
       row.className = 'hover:bg-[var(--table-row-hover-background-color)] transition-colors duration-fast';
 
+      if (this.viewMode === 'grouped') {
+        return this.createGroupedRow(row, errorLog);
+      }
+
+      return this.createIndexRow(row, errorLog);
+    }
+
+    createIndexRow(row, errorLog) {
+      // Exception class
+      const exceptionCell = document.createElement('td');
+      exceptionCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      exceptionCell.textContent = errorLog.exception_class;
+
+      // Occurrences
+      const occurrencesCell = document.createElement('td');
+      occurrencesCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      occurrencesCell.innerHTML = `<span class="font-medium">${errorLog.occurrence_count}</span>`;
+
+      // Users Affected
+      const usersCell = document.createElement('td');
+      usersCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      usersCell.innerHTML = errorLog.affected_count > 0
+        ? `<span class="font-medium">${errorLog.affected_count}</span>`
+        : '<span class="text-gray-400">—</span>';
+
+      // Last Seen
+      const lastSeenCell = document.createElement('td');
+      lastSeenCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      lastSeenCell.textContent = this.timeAgo(errorLog.last_seen);
+
+      // View link
+      const viewCell = document.createElement('td');
+      viewCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      const dashboardPath = errorLog.dashboard_path || `${this.baseUrl.replace(/\/$/, '')}/dashboard/${errorLog.id}`;
+      viewCell.innerHTML = this.getViewLinkHtml(dashboardPath);
+
+      row.appendChild(exceptionCell);
+      row.appendChild(occurrencesCell);
+      row.appendChild(usersCell);
+      row.appendChild(lastSeenCell);
+      row.appendChild(viewCell);
+
+      return row;
+    }
+
+    createGroupedRow(row, errorLog) {
       // Status badge
       const statusCell = document.createElement('td');
       statusCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
-      statusCell.innerHTML = this.getStatusBadge(errorLog.status);
+      statusCell.innerHTML = errorLog.status ? this.getStatusBadge(errorLog.status) : '';
 
       // Exception class
       const exceptionCell = document.createElement('td');
@@ -100,7 +148,7 @@
       // Message
       const messageCell = document.createElement('td');
       messageCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
-      messageCell.textContent = this.truncate(errorLog.message, 60);
+      messageCell.textContent = errorLog.message ? this.truncate(errorLog.message, 60) : '';
 
       // Occurrences
       const occurrencesCell = document.createElement('td');
@@ -128,7 +176,7 @@
       const viewCell = document.createElement('td');
       viewCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
       const dashboardPath = errorLog.dashboard_path || `${this.baseUrl.replace(/\/$/, '')}/dashboard/${errorLog.id}`;
-      viewCell.innerHTML = `<a href="${dashboardPath}" class="inline-flex items-center justify-center gap-2 rounded-[var(--button-border-radius)] font-medium cursor-pointer transition-colors duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--button-focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--button-focus-ring-offset-color)] disabled:pointer-events-none disabled:opacity-[var(--button-disabled-opacity)] px-[var(--button-padding-x-sm)] py-[var(--button-padding-y-sm)] text-xs bg-[var(--button-ghost-background-color)] hover:bg-[var(--button-ghost-hover-background-color)] text-[var(--button-ghost-text-color)] border border-[var(--button-ghost-border-color)]">View</a>`;
+      viewCell.innerHTML = this.getViewLinkHtml(dashboardPath);
 
       row.appendChild(statusCell);
       row.appendChild(exceptionCell);
@@ -140,6 +188,10 @@
       row.appendChild(viewCell);
 
       return row;
+    }
+
+    getViewLinkHtml(dashboardPath) {
+      return `<a href="${dashboardPath}" class="inline-flex items-center justify-center gap-2 rounded-[var(--button-border-radius)] font-medium cursor-pointer transition-colors duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--button-focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--button-focus-ring-offset-color)] disabled:pointer-events-none disabled:opacity-[var(--button-disabled-opacity)] px-[var(--button-padding-x-sm)] py-[var(--button-padding-y-sm)] text-xs bg-[var(--button-ghost-background-color)] hover:bg-[var(--button-ghost-hover-background-color)] text-[var(--button-ghost-text-color)] border border-[var(--button-ghost-border-color)]">View</a>`;
     }
 
     getStatusBadge(status) {
@@ -206,13 +258,32 @@
         this.loadingIndicator.classList.add('hidden');
       }
     }
+
+    destroy() {
+      if (this.observer) {
+        this.observer.disconnect();
+      }
+    }
   }
 
-  // Initialize infinite scroll when DOM is ready
-  document.addEventListener('DOMContentLoaded', function () {
+  function initializeInfiniteScroll() {
     const container = document.getElementById('error-logs-container');
     if (container) {
-      new InfiniteScroll(container);
+      if (container._infiniteScroll) {
+        container._infiniteScroll.destroy();
+      }
+
+      container._infiniteScroll = new InfiniteScroll(container);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', initializeInfiniteScroll);
+  document.addEventListener('turbo:load', initializeInfiniteScroll);
+  document.addEventListener('turbo:before-cache', function () {
+    const container = document.getElementById('error-logs-container');
+    if (container && container._infiniteScroll) {
+      container._infiniteScroll.destroy();
+      delete container._infiniteScroll;
     }
   });
 })();
