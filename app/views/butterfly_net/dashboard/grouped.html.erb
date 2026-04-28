@@ -10,8 +10,18 @@
 <div class="mt-6 flex items-center gap-2 text-sm">
   <% message_group_path = grouped_dashboard_index_path(exception_class: @exception_class, group_by: ButterflyNet::DashboardController::GROUP_BY_MESSAGE) %>
   <% ip_group_path = grouped_dashboard_index_path(exception_class: @exception_class, group_by: ButterflyNet::DashboardController::GROUP_BY_IP) %>
-  <%= link_to "Message grouped", message_group_path, class: ["inline-flex items-center rounded-full border px-3 py-1.5 font-medium transition-colors", @group_by == ButterflyNet::DashboardController::GROUP_BY_MESSAGE ? "border-primary bg-primary text-primary-text" : "border-gray-300 text-gray-700 hover:border-gray-400 hover:text-gray-900"].join(" ") %>
-  <%= link_to "IP address grouped", ip_group_path, class: ["inline-flex items-center rounded-full border px-3 py-1.5 font-medium transition-colors", @group_by == ButterflyNet::DashboardController::GROUP_BY_IP ? "border-primary bg-primary text-primary-text" : "border-gray-300 text-gray-700 hover:border-gray-400 hover:text-gray-900"].join(" ") %>
+  <%= render FlatPack::Button::Component.new(
+    text: "Message grouped",
+    style: @group_by == ButterflyNet::DashboardController::GROUP_BY_MESSAGE ? :primary : :default,
+    size: :sm,
+    url: message_group_path
+  ) %>
+  <%= render FlatPack::Button::Component.new(
+    text: "IP address grouped",
+    style: @group_by == ButterflyNet::DashboardController::GROUP_BY_IP ? :primary : :default,
+    size: :sm,
+    url: ip_group_path
+  ) %>
 </div>
 
 <div class="mt-8" id="error-logs-container" data-current-page="<%= @pagy.page %>" data-has-more="<%= @pagy.next.present? %>" data-base-url="<%= grouped_dashboard_index_path(exception_class: @exception_class, group_by: @group_by) %>" data-view-mode="<%= @group_by == ButterflyNet::DashboardController::GROUP_BY_IP ? "grouped-ip" : "grouped-message" %>">
