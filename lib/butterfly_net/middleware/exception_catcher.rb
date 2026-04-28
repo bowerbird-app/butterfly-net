@@ -90,11 +90,19 @@ module ButterflyNet
 
       def extract_ip_address(env, request)
         forwarded_for = env["HTTP_X_FORWARDED_FOR"].to_s.split(",").first&.strip
-        remote_ip = env["action_dispatch.remote_ip"]
+        remote_ip = normalize_ip_address(env["action_dispatch.remote_ip"])
+        request_ip = normalize_ip_address(request.ip)
+        remote_addr = normalize_ip_address(env["REMOTE_ADDR"])
 
-        remote_ip.presence || forwarded_for.presence || request.ip.presence || env["REMOTE_ADDR"].presence
+        remote_ip.presence || forwarded_for.presence || request_ip.presence || remote_addr.presence
       rescue StandardError
-        env["REMOTE_ADDR"].presence
+        normalize_ip_address(env["REMOTE_ADDR"]).presence
+      end
+
+      def normalize_ip_address(value)
+        return if value.blank?
+
+        value.to_s.strip
       end
 
       def safe_params(request)
