@@ -12,7 +12,7 @@ GIT
 PATH
   remote: ../..
   specs:
-    butterfly_net (0.6.1)
+    butterfly_net (0.6.2)
       faraday-retry
       flat_pack (~> 0.1)
       importmap-rails
