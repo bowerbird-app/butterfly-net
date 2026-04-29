@@ -6,12 +6,12 @@ gem "rails", "~> 7.1"
 gemspec path: "../.."
 
 gem "flat_pack", github: "bowerbird-app/flatpack", tag: "v0.1.33"
-gem "flatpack-checker", github: "bowerbird-app/flatpack-checker", tag: "0.1.1"
 gem "minitest", "< 6"
 
 gem "puma"
 
 gem "sqlite3"
+gem "pg" # PostgreSQL adapter for devcontainer
 
 gem "propshaft"
 
