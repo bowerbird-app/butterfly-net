@@ -3,7 +3,7 @@ source "https://rubygems.org"
 # Specify your gem's dependencies in butterfly_net.gemspec.
 gemspec
 
-gem "flat_pack", github: "bowerbird-app/flatpack", tag: "v0.1.11"
+gem "flat_pack", github: "bowerbird-app/flatpack", tag: "v0.1.33"
 
 gem "flatpack-checker", github: "bowerbird-app/flatpack-checker", tag: "0.1.1"
 gem "minitest", "< 6"
