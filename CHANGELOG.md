@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-04-29
+
+### Changed
+- Bumped the gem version to `0.6.3`
+- Refreshed bundled installation metadata for the root app and both dummy apps
+
 ## [0.6.0] - 2026-03-26
 
 ### Added
@@ -129,7 +135,9 @@ This will:
 
 See git history for changes in versions prior to 0.3.0.
 
-[Unreleased]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.6.1...v0.6.3
+[0.6.0]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/bowerbird-app/marco-butterfly-net/releases/tag/v0.3.0

@@ -1,8 +1,8 @@
 source "https://rubygems.org"
 
-gem "rails", "~> 7.1"
+gem "rails", "~> 8.1"
 
-# Use the gem from the workspace root
+# Use the gem from the workspace root.
 gemspec path: "../.."
 
 gem "flat_pack", github: "bowerbird-app/flatpack", tag: "v0.1.33"
@@ -18,9 +18,6 @@ gem "propshaft"
 gem "importmap-rails"
 gem "turbo-rails"
 gem "stimulus-rails"
-
-# Code coverage
-gem "simplecov", require: false
 
 # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
 gem "rubocop-rails-omakase", require: false
