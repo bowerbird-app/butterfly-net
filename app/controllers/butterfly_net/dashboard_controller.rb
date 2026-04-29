@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
 require "butterfly_net/analytics_date_range"
-
 module ButterflyNet
   # Controller for the error tracking dashboard.
   # Provides index (list of errors) and show (error details) actions.
   class DashboardController < ApplicationController
+    GROUP_BY_MESSAGE = "message"
+    GROUP_BY_IP = "ip"
+    GROUP_BY_OPTIONS = [ GROUP_BY_MESSAGE, GROUP_BY_IP ].freeze
+
     def index
       @pagy, @error_rows = grouped_error_rows
 
@@ -22,16 +25,14 @@ module ButterflyNet
 
     def grouped
       @exception_class = params[:exception_class].to_s
-      @pagy, @error_logs = pagy(ErrorLog.by_exception_class(@exception_class).recent.includes(:occurrences), limit: 25)
+      @group_by = normalized_group_by
+      @pagy, @error_logs = grouped_error_logs
 
       respond_to do |format|
         format.html
         format.json do
-          error_log_ids = @error_logs.pluck(:id)
-          affected_counts = calculate_affected_counts(error_log_ids)
-
           render json: {
-            error_logs: @error_logs.map { |log| error_log_json(log, affected_counts[log.id] || 0) },
+            error_logs: grouped_error_logs_json,
             pagy: pagy_metadata(@pagy)
           }
         end
@@ -250,6 +251,105 @@ module ButterflyNet
 
     def error_occurrences_table
       ErrorOccurrence.table_name
+    end
+
+    def normalized_group_by
+      GROUP_BY_OPTIONS.include?(params[:group_by]) ? params[:group_by] : GROUP_BY_MESSAGE
+    end
+
+    def grouped_error_logs
+      return grouped_error_logs_by_ip if @group_by == GROUP_BY_IP
+
+      pagy(ErrorLog.by_exception_class(@exception_class).recent.includes(:occurrences), limit: 25)
+    end
+
+    def grouped_error_logs_json
+      return @error_logs.map { |group| grouped_ip_group_json(group) } if @group_by == GROUP_BY_IP
+
+      error_log_ids = @error_logs.pluck(:id)
+      affected_counts = calculate_affected_counts(error_log_ids)
+
+      @error_logs.map { |log| error_log_json(log, affected_counts[log.id] || 0) }
+    end
+
+    def grouped_error_logs_by_ip
+      groups = build_grouped_ip_groups
+      pagy = Pagy.new(count: groups.length, page: params[:page], limit: 25)
+
+      [ pagy, groups.slice(pagy.offset, pagy.limit) || [] ]
+    end
+
+    def build_grouped_ip_groups
+      grouped_rows = ErrorOccurrence
+        .joins(:error_log)
+        .where(error_logs_table => { exception_class: @exception_class })
+        .includes(:error_log)
+        .each_with_object({}) do |occurrence, rows|
+          ip_address = occurrence_ip_address(occurrence)
+          rows[ip_address] ||= {
+            ip_address: ip_address,
+            last_seen: nil,
+            error_logs: {}
+          }
+
+          row = rows[ip_address]
+
+          row[:error_logs][occurrence.error_log_id] ||= {
+            error_log: occurrence.error_log,
+            occurrence_count: 0,
+            unique_user_ids: Set.new,
+            unique_user_emails: Set.new,
+            last_seen: nil
+          }
+
+          error_row = row[:error_logs][occurrence.error_log_id]
+          error_row[:occurrence_count] += 1
+          error_row[:unique_user_ids] << occurrence.user_id if occurrence.user_id.present?
+          error_row[:unique_user_emails] << occurrence.user_email if occurrence.user_email.present?
+
+          occurred_at = occurrence.created_at || occurrence.error_log.created_at
+          row[:last_seen] = occurred_at if row[:last_seen].nil? || occurred_at > row[:last_seen]
+          error_row[:last_seen] = occurred_at if error_row[:last_seen].nil? || occurred_at > error_row[:last_seen]
+        end
+
+      grouped_rows.values.map do |row|
+        row[:error_logs] = row[:error_logs].values.map do |error_row|
+          build_grouped_ip_error_log(error_row)
+        end.sort_by { |error_log| [ -(error_log[:last_seen]&.to_i || 0), error_log[:message].to_s ] }
+        row
+      end.sort_by { |row| [ -(row[:last_seen]&.to_i || 0), row[:ip_address] ] }
+    end
+
+    def build_grouped_ip_error_log(error_row)
+      error_log = error_row[:error_log]
+
+      {
+        id: error_log.id,
+        dashboard_path: dashboard_path(error_log),
+        grouped: false,
+        status: error_log.status,
+        exception_class: error_log.exception_class,
+        message: error_log.message,
+        occurrence_count: error_row[:occurrence_count],
+        affected_count: [ error_row[:unique_user_ids].length, error_row[:unique_user_emails].length ].max,
+        last_seen: error_row[:last_seen] || error_log.created_at,
+        github_issue_number: error_log.github_issue_number,
+        github_issue_url: error_log.github_issue_url,
+        has_github_issue: error_log.has_github_issue?
+      }
+    end
+
+    def grouped_ip_group_json(group)
+      {
+        ip_address: group[:ip_address],
+        last_seen: group[:last_seen],
+        error_logs: group[:error_logs]
+      }
+    end
+
+    def occurrence_ip_address(occurrence)
+      params = occurrence.params_hash
+      params["ip_address"].presence || params[:ip_address].presence || "Unknown"
     end
   end
 end
