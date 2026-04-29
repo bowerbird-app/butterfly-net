@@ -80,11 +80,29 @@ module ButterflyNet
       def extract_request_params(env)
         request = Rack::Request.new(env)
         {
+          ip_address: extract_ip_address(env, request),
           path: request.path,
           method: request.request_method,
           query_string: filter_query_string(request.query_string),
           params: filter_params(safe_params(request))
         }
+      end
+
+      def extract_ip_address(env, request)
+        forwarded_for = env["HTTP_X_FORWARDED_FOR"].to_s.split(",").first&.strip
+        remote_ip = normalize_ip_address(env["action_dispatch.remote_ip"])
+        request_ip = normalize_ip_address(request.ip)
+        remote_addr = normalize_ip_address(env["REMOTE_ADDR"])
+
+        remote_ip.presence || forwarded_for.presence || request_ip.presence || remote_addr.presence
+      rescue StandardError
+        normalize_ip_address(env["REMOTE_ADDR"]).presence
+      end
+
+      def normalize_ip_address(value)
+        return if value.blank?
+
+        value.to_s.strip
       end
 
       def safe_params(request)
@@ -113,7 +131,7 @@ module ButterflyNet
         return query_string if query_string.blank?
 
         pairs = query_string.split("&").map do |pair|
-          key, value = pair.split("=", 2)
+          key, _filtered_value = pair.split("=", 2)
           if key && sensitive_key?(key.downcase)
             "#{key}=#{FILTER_VALUE}"
           else

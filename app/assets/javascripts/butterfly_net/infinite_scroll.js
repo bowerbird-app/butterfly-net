@@ -6,6 +6,7 @@
     constructor(container, options = {}) {
       this.container = container;
       this.tableBody = container.querySelector('tbody');
+      this.ipGroupsContainer = container.querySelector('[data-ip-groups]');
       this.loadingIndicator = container.querySelector('#loading-indicator');
       this.sentinel = container.querySelector('#scroll-sentinel');
       this.currentPage = parseInt(container.dataset.currentPage || '1', 10);
@@ -79,9 +80,20 @@
     }
 
     appendRows(errorLogs) {
+      if (this.viewMode === 'grouped-ip') {
+        this.appendIpGroups(errorLogs);
+        return;
+      }
+
       errorLogs.forEach(errorLog => {
         const row = this.createRow(errorLog);
         this.tableBody.appendChild(row);
+      });
+    }
+
+    appendIpGroups(groups) {
+      groups.forEach(group => {
+        this.ipGroupsContainer.appendChild(this.createIpGroupSection(group));
       });
     }
 
@@ -89,7 +101,11 @@
       const row = document.createElement('tr');
       row.className = 'hover:bg-[var(--table-row-hover-background-color)] transition-colors duration-fast';
 
-      if (this.viewMode === 'grouped') {
+      if (this.viewMode === 'grouped-ip') {
+        return this.createGroupedIpRow(row, errorLog);
+      }
+
+      if (this.viewMode === 'grouped-message') {
         return this.createGroupedRow(row, errorLog);
       }
 
@@ -188,6 +204,64 @@
       row.appendChild(viewCell);
 
       return row;
+    }
+
+    createGroupedIpRow(row, errorLog) {
+      return this.createGroupedRow(row, errorLog);
+    }
+
+    createIpGroupSection(group) {
+      const section = document.createElement('section');
+      section.className = 'mb-8 last:mb-0';
+
+      const heading = document.createElement('p');
+      heading.className = 'mb-4 text-sm font-medium text-gray-700';
+      heading.innerHTML = `IP address: <span class="text-gray-900">${this.escapeHtml(group.ip_address || 'Unknown')}</span>`;
+
+      section.appendChild(heading);
+      section.appendChild(this.createGroupedTable(group.error_logs || []));
+
+      return section;
+    }
+
+    createGroupedTable(errorLogs) {
+      const tableWrapper = document.createElement('div');
+      tableWrapper.className = 'overflow-x-auto';
+
+      const table = document.createElement('table');
+      table.className = 'min-w-full';
+
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      ['Status', 'Exception', 'Message', 'Occurrences', 'Users Affected', 'Last Seen', 'GitHub Issue', ''].forEach(title => {
+        const th = document.createElement('th');
+        th.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-left text-sm font-medium text-[var(--table-header-text-color)]';
+        th.textContent = title;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+
+      const tbody = document.createElement('tbody');
+      errorLogs.forEach(errorLog => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-[var(--table-row-hover-background-color)] transition-colors duration-fast';
+        tbody.appendChild(this.createGroupedIpRow(row, errorLog));
+      });
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+
+      return tableWrapper;
+    }
+
+    escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     getViewLinkHtml(dashboardPath) {
