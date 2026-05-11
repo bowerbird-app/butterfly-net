@@ -173,6 +173,30 @@ end
 
 The middleware is automatically inserted into your Rails middleware stack when the engine is loaded.
 
+### Reporting Rescued Exceptions
+
+Unhandled exceptions continue to be captured automatically by the middleware. Use `ButterflyNet.error(...)` when you rescue an exception but still want it recorded in ButterflyNet.
+
+```ruby
+begin
+  do_something!
+rescue => e
+  ButterflyNet.error(e, request_id: request.id)
+end
+
+begin
+  do_something!
+rescue => e
+  ButterflyNet.error(
+    "Error: #{e.message}",
+    request_id: @request.id,
+    error: e
+  )
+end
+```
+
+`ButterflyNet.error` accepts either an exception object or a message string, plus optional context data and structured metadata. If you pass a message with `error: e`, ButterflyNet stores the custom message and the exception backtrace together.
+
 ## Security (IMPORTANT)
 
 **The engine does not include any authentication or authorization by default.** The dashboard is accessible to anyone who can reach the mounted path. This is by design - the host application is responsible for securing access to the dashboard.
@@ -566,6 +590,8 @@ Tailwind CSS v4 uses CSS-based configuration. The source paths are configured in
 @source "../../../controllers/butterfly_net/**/*.rb";
 ```
 
+FlatPack component sources are resolved dynamically by the `butterfly_net:tailwindcss:*` rake tasks. This is required because Bundler install paths vary across machines and container builds.
+
 ### Style Isolation
 
 The dashboard uses standard Tailwind utility classes. The styles are loaded via the engine's layout file and are scoped to the engine's views only. This means:
@@ -576,7 +602,15 @@ The dashboard uses standard Tailwind utility classes. The styles are loaded via 
 
 ### Host Application Considerations
 
-No configuration is needed in your host application. The gem's stylesheet is automatically served via Propshaft when you mount the engine. The stylesheet is referenced using `stylesheet_link_tag "butterfly_net/application"` in the engine's layout.
+No additional CSS build step is required in your host application, but the host app does need an asset pipeline backend such as Propshaft so the engine stylesheet can be served. The engine references the compiled bundle using `stylesheet_link_tag "butterfly_net/application"` in its layout.
+
+If the dashboard renders without styling while the stylesheet tag is present, rebuild the engine CSS bundle first:
+
+```bash
+bundle exec rake app:butterfly_net:tailwindcss:build
+```
+
+That rebuild step is especially important after updating FlatPack, because ButterflyNet scans FlatPack component source files to include the utility classes those components emit.
 
 ## Terminal Command
 

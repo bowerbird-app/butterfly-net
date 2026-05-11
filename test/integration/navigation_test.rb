@@ -64,6 +64,38 @@ class ErrorCaptureIntegrationTest < ActionDispatch::IntegrationTest
     assert_equal RuntimeError, captured[:exception].class
   end
 
+  test "captures handled RuntimeError through explicit ButterflyNet.error logging" do
+    get "/test/handled_runtime_error"
+
+    assert_response :success
+    assert_equal 1, ButterflyNet.captured_exceptions.length
+
+    captured = ButterflyNet.captured_exceptions.first
+    assert_equal RuntimeError, captured[:exception].class
+    assert_equal "Something handled but important went wrong", captured[:exception].message
+
+    error_log = ButterflyNet::ErrorLog.last
+    assert_equal "RuntimeError", error_log.exception_class
+    assert_equal "Something handled but important went wrong", error_log.message
+    assert_equal "handled_runtime_error", error_log.request_params["metadata"]["scenario"]
+  end
+
+  test "captures unhandled RuntimeError counterpart" do
+    assert_raises(RuntimeError) do
+      get "/test/unhandled_runtime_error"
+    end
+
+    assert_equal 1, ButterflyNet.captured_exceptions.length
+
+    captured = ButterflyNet.captured_exceptions.first
+    assert_equal RuntimeError, captured[:exception].class
+    assert_equal "Something handled but important went wrong", captured[:exception].message
+
+    error_log = ButterflyNet::ErrorLog.last
+    assert_equal "RuntimeError", error_log.exception_class
+    assert_equal "Something handled but important went wrong", error_log.message
+  end
+
   test "successful request does not capture exceptions" do
     get "/test/success"
 

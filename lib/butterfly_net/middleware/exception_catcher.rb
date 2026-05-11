@@ -56,25 +56,17 @@ module ButterflyNet
       def capture_and_persist(exception, env)
         # Mark as handled to prevent duplicate logging
         env["butterfly_net.exception_handled"] = true
-        ButterflyNet.capture_exception(exception, env)
-        persist_exception(exception, env)
+        ButterflyNet.report_error(
+          exception,
+          env: env,
+          metadata: { request_params: extract_request_params(env) }
+        )
       end
 
       private
 
       def persist_exception(exception, env)
-        ButterflyNet::ErrorLog.find_or_create_with_occurrence(
-          exception_class: exception.class.name,
-          message: exception.message,
-          backtrace: exception.backtrace&.join("\n"),
-          user_id: env["error_tracking.user_id"],
-          user_email: env["error_tracking.user_email"],
-          request_params: extract_request_params(env),
-          user_agent: env["HTTP_USER_AGENT"]
-        )
-      rescue StandardError => e
-        # Don't let persistence failures crash the app
-        Rails.logger.error "[ButterflyNet] Failed to persist error: #{e.message}"
+        ButterflyNet.persist_error(exception, env, extract_request_params(env))
       end
 
       def extract_request_params(env)
