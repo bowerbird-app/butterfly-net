@@ -11,6 +11,8 @@ Rails.application.routes.draw do
     get "/test/argument_error" => "test_errors#argument_error"
     get "/test/type_error" => "test_errors#type_error"
     get "/test/runtime_error" => "test_errors#runtime_error"
+    get "/test/handled_runtime_error" => "test_errors#handled_runtime_error"
+    get "/test/unhandled_runtime_error" => "test_errors#unhandled_runtime_error"
     get "/test/success" => "test_errors#success"
   end
 end
