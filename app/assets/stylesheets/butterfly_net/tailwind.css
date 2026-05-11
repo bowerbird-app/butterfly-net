@@ -11,8 +11,13 @@
 @source "../../../helpers/butterfly_net/**/*.rb";
 @source "../../../controllers/butterfly_net/**/*.rb";
 
-/* Scan FlatPack component classes */
-@source "../../../../../../usr/local/bundle/ruby/3.3.0/bundler/gems/flatpack-7ed3011a293a/app/components";
+/*
+ * Scan FlatPack component classes.
+ *
+ * The actual path is injected by the build task because Bundler checkout paths
+ * vary by machine, Ruby version, and install method.
+ */
+@source "__FLAT_PACK_COMPONENTS__";
 
 /* Extend Tailwind theme with FlatPack design tokens */
 @theme {
