@@ -222,6 +222,7 @@ class ButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestCase
       "REQUEST_METHOD" => "POST",
       "PATH_INFO" => "/api/test",
       "QUERY_STRING" => "key=value",
+      "REMOTE_ADDR" => "203.0.113.10",
       "HTTP_USER_AGENT" => "TestAgent/1.0",
       "error_tracking.user_id" => "user123",
       "error_tracking.user_email" => "user@example.com",
@@ -234,6 +235,7 @@ class ButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestCase
     assert_not_nil error_log
     assert_equal "StandardError", error_log.exception_class
     assert_equal "Test error", error_log.message
+    assert_equal "203.0.113.10", error_log.request_params["ip_address"]
     assert_includes error_log.backtrace, "line1"
   end
 

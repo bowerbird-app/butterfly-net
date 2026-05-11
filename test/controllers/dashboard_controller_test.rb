@@ -27,9 +27,34 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_match /RuntimeError/, response.body
-    assert_match /Test error message/, response.body
+    assert_no_match /Status/, response.body
+    assert_no_match /Message/, response.body
+    assert_no_match /GitHub Issue/, response.body
     assert_match(/data-current-page="1"/, response.body)
     assert_match(/data-has-more="false"/, response.body)
+  end
+
+  test "index groups duplicate exception classes into a single row" do
+    first_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    first_error.occurrences.create!(user_id: "user-1")
+
+    second_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /other"
+    )
+    second_error.occurrences.create!(user_id: "user-2")
+
+    get butterfly_net.dashboard_index_path
+
+    assert_response :success
+    assert_equal 1, response.body.scan(/ActionController::RoutingError/).length
+    assert_no_match(/No route matches \/missing/, response.body)
+    assert_no_match(/No route matches \/other/, response.body)
+    assert_match(/>2</, response.body)
+    assert_match(%r{href="#{Regexp.escape(butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError"))}"}, response.body)
   end
 
   test "index paginates results" do
@@ -106,6 +131,59 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_match /undefined method/, response.body
     assert_match /line1/, response.body
     assert_match /Test Browser/, response.body
+    assert_match(/Dashboard/, response.body)
+    assert_match(/Error Details/, response.body)
+    assert_match(%r{href="#{Regexp.escape(butterfly_net.grouped_dashboard_index_path(exception_class: "NoMethodError"))}"}, response.body)
+  end
+
+  test "grouped displays individual errors for an exception class" do
+    matching_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    matching_error.occurrences.create!(user_id: "user-1")
+
+    ButterflyNet::ErrorLog.create!(
+      exception_class: "OtherError",
+      message: "Ignore me"
+    )
+
+    get butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError")
+
+    assert_response :success
+    assert_match /ActionController::RoutingError/, response.body
+    assert_match /Message grouped/, response.body
+    assert_match /IP address grouped/, response.body
+    assert_match /No route matches \/missing/, response.body
+    assert_no_match /Ignore me/, response.body
+    assert_match(%r{href="#{Regexp.escape(butterfly_net.dashboard_path(matching_error))}"}, response.body)
+  end
+
+  test "grouped can switch to IP address grouped view" do
+    first_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    first_error.occurrences.create!(user_id: "user-1", request_params: { ip_address: "203.0.113.10" })
+
+    second_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /other"
+    )
+    second_error.occurrences.create!(user_id: "user-2", request_params: { ip_address: "203.0.113.10" })
+    second_error.occurrences.create!(user_id: "user-3", request_params: { ip_address: "198.51.100.25" })
+
+    get butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError", group_by: "ip")
+
+    assert_response :success
+    assert_match /Distinct IP addresses for this exception: 2/, response.body
+    assert_match /IP address: <span class="text-gray-900">203.0.113.10/, response.body
+    assert_match /IP address: <span class="text-gray-900">198.51.100.25/, response.body
+    assert_match /GitHub Issue/, response.body
+    assert_match /203.0.113.10/, response.body
+    assert_match /198.51.100.25/, response.body
+    assert_match /No route matches \/missing/, response.body
+    assert_match /No route matches \/other/, response.body
   end
 
   test "show prefers latest occurrence details" do
@@ -178,6 +256,62 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     json_response = JSON.parse(response.body)
     error_data = json_response["error_logs"].first
     assert_equal 2, error_data["affected_count"]
+  end
+
+  test "index JSON groups duplicate exception classes" do
+    first_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    first_error.occurrences.create!(user_id: "user-1")
+
+    second_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /other"
+    )
+    second_error.occurrences.create!(user_id: "user-2")
+
+    get butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    assert_equal 1, json_response["error_logs"].length
+
+    error_data = json_response["error_logs"].first
+    assert_nil error_data["status"]
+    assert_nil error_data["message"]
+    assert_equal 2, error_data["occurrence_count"]
+    assert_equal 2, error_data["affected_count"]
+    assert_equal butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError"), error_data["dashboard_path"]
+    assert_equal true, error_data["grouped"]
+  end
+
+  test "grouped JSON can be grouped by IP address" do
+    first_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /missing"
+    )
+    first_error.occurrences.create!(user_id: "user-1", request_params: { ip_address: "203.0.113.10" })
+
+    second_error = ButterflyNet::ErrorLog.create!(
+      exception_class: "ActionController::RoutingError",
+      message: "No route matches /other"
+    )
+    second_error.occurrences.create!(user_email: "user@example.com", request_params: { ip_address: "203.0.113.10" })
+    second_error.occurrences.create!(request_params: { ip_address: "198.51.100.25" })
+
+    get butterfly_net.grouped_dashboard_index_path(exception_class: "ActionController::RoutingError", group_by: "ip"), headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    assert_equal 2, json_response["error_logs"].length
+
+    first_group = json_response["error_logs"].find { |row| row["ip_address"] == "203.0.113.10" }
+    assert_equal 2, first_group["error_logs"].length
+
+    first_row = first_group["error_logs"].find { |row| row["message"] == "No route matches /missing" }
+    assert_equal 1, first_row["occurrence_count"]
+    assert_equal 1, first_row["affected_count"]
   end
 
   test "fetch_blame retrieves blame info successfully" do
@@ -363,8 +497,8 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     get butterfly_net.dashboard_path(error_log)
 
     assert_response :success
-    # Should have create issue button when configured
-    assert_select "a[href=?]", butterfly_net.create_issue_dashboard_path(error_log)
+    # Should have create issue form button when configured
+    assert_select "form[action=?]", butterfly_net.create_issue_dashboard_path(error_log)
   ensure
     ButterflyNet.reset_configuration!
   end
@@ -388,6 +522,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal "TestError", error_data["exception_class"]
     assert_equal "Test message", error_data["message"]
     assert_equal "open", error_data["status"]
+    assert_equal false, error_data["grouped"]
     assert_equal 123, error_data["github_issue_number"]
     assert_equal "https://github.com/test/repo/issues/123", error_data["github_issue_url"]
     assert error_data["has_github_issue"]
@@ -463,7 +598,7 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "index JSON handles errors with no occurrences" do
-    error_log = ButterflyNet::ErrorLog.create!(
+    ButterflyNet::ErrorLog.create!(
       exception_class: "NoOccurrenceError",
       message: "Test message"
     )

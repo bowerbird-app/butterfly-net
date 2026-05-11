@@ -6,12 +6,14 @@
     constructor(container, options = {}) {
       this.container = container;
       this.tableBody = container.querySelector('tbody');
+      this.ipGroupsContainer = container.querySelector('[data-ip-groups]');
       this.loadingIndicator = container.querySelector('#loading-indicator');
       this.sentinel = container.querySelector('#scroll-sentinel');
       this.currentPage = parseInt(container.dataset.currentPage || '1', 10);
       this.isLoading = false;
       this.hasMore = container.dataset.hasMore === 'true';
-      this.baseUrl = options.baseUrl || window.location.pathname;
+      this.baseUrl = options.baseUrl || container.dataset.baseUrl || window.location.pathname;
+      this.viewMode = container.dataset.viewMode || 'index';
 
       this.init();
     }
@@ -41,7 +43,8 @@
       this.showLoading();
 
       const nextPage = this.currentPage + 1;
-      const url = `${this.baseUrl}?page=${nextPage}`;
+      const separator = this.baseUrl.includes('?') ? '&' : '?';
+      const url = `${this.baseUrl}${separator}page=${nextPage}`;
 
       try {
         const response = await fetch(url, {
@@ -77,9 +80,20 @@
     }
 
     appendRows(errorLogs) {
+      if (this.viewMode === 'grouped-ip') {
+        this.appendIpGroups(errorLogs);
+        return;
+      }
+
       errorLogs.forEach(errorLog => {
         const row = this.createRow(errorLog);
         this.tableBody.appendChild(row);
+      });
+    }
+
+    appendIpGroups(groups) {
+      groups.forEach(group => {
+        this.ipGroupsContainer.appendChild(this.createIpGroupSection(group));
       });
     }
 
@@ -87,10 +101,60 @@
       const row = document.createElement('tr');
       row.className = 'hover:bg-[var(--table-row-hover-background-color)] transition-colors duration-fast';
 
+      if (this.viewMode === 'grouped-ip') {
+        return this.createGroupedIpRow(row, errorLog);
+      }
+
+      if (this.viewMode === 'grouped-message') {
+        return this.createGroupedRow(row, errorLog);
+      }
+
+      return this.createIndexRow(row, errorLog);
+    }
+
+    createIndexRow(row, errorLog) {
+      // Exception class
+      const exceptionCell = document.createElement('td');
+      exceptionCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      exceptionCell.textContent = errorLog.exception_class;
+
+      // Occurrences
+      const occurrencesCell = document.createElement('td');
+      occurrencesCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      occurrencesCell.innerHTML = `<span class="font-medium">${errorLog.occurrence_count}</span>`;
+
+      // Users Affected
+      const usersCell = document.createElement('td');
+      usersCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      usersCell.innerHTML = errorLog.affected_count > 0
+        ? `<span class="font-medium">${errorLog.affected_count}</span>`
+        : '<span class="text-gray-400">—</span>';
+
+      // Last Seen
+      const lastSeenCell = document.createElement('td');
+      lastSeenCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      lastSeenCell.textContent = this.timeAgo(errorLog.last_seen);
+
+      // View link
+      const viewCell = document.createElement('td');
+      viewCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
+      const dashboardPath = errorLog.dashboard_path || `${this.baseUrl.replace(/\/$/, '')}/dashboard/${errorLog.id}`;
+      viewCell.innerHTML = this.getViewLinkHtml(dashboardPath);
+
+      row.appendChild(exceptionCell);
+      row.appendChild(occurrencesCell);
+      row.appendChild(usersCell);
+      row.appendChild(lastSeenCell);
+      row.appendChild(viewCell);
+
+      return row;
+    }
+
+    createGroupedRow(row, errorLog) {
       // Status badge
       const statusCell = document.createElement('td');
       statusCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
-      statusCell.innerHTML = this.getStatusBadge(errorLog.status);
+      statusCell.innerHTML = errorLog.status ? this.getStatusBadge(errorLog.status) : '';
 
       // Exception class
       const exceptionCell = document.createElement('td');
@@ -100,7 +164,7 @@
       // Message
       const messageCell = document.createElement('td');
       messageCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
-      messageCell.textContent = this.truncate(errorLog.message, 60);
+      messageCell.textContent = errorLog.message ? this.truncate(errorLog.message, 60) : '';
 
       // Occurrences
       const occurrencesCell = document.createElement('td');
@@ -128,7 +192,7 @@
       const viewCell = document.createElement('td');
       viewCell.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-sm text-[var(--table-cell-text-color)]';
       const dashboardPath = errorLog.dashboard_path || `${this.baseUrl.replace(/\/$/, '')}/dashboard/${errorLog.id}`;
-      viewCell.innerHTML = `<a href="${dashboardPath}" class="inline-flex items-center justify-center gap-2 rounded-[var(--button-border-radius)] font-medium cursor-pointer transition-colors duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--button-focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--button-focus-ring-offset-color)] disabled:pointer-events-none disabled:opacity-[var(--button-disabled-opacity)] px-[var(--button-padding-x-sm)] py-[var(--button-padding-y-sm)] text-xs bg-[var(--button-ghost-background-color)] hover:bg-[var(--button-ghost-hover-background-color)] text-[var(--button-ghost-text-color)] border border-[var(--button-ghost-border-color)]">View</a>`;
+      viewCell.innerHTML = this.getViewLinkHtml(dashboardPath);
 
       row.appendChild(statusCell);
       row.appendChild(exceptionCell);
@@ -140,6 +204,68 @@
       row.appendChild(viewCell);
 
       return row;
+    }
+
+    createGroupedIpRow(row, errorLog) {
+      return this.createGroupedRow(row, errorLog);
+    }
+
+    createIpGroupSection(group) {
+      const section = document.createElement('section');
+      section.className = 'mb-8 last:mb-0';
+
+      const heading = document.createElement('p');
+      heading.className = 'mb-4 text-sm font-medium text-gray-700';
+      heading.innerHTML = `IP address: <span class="text-gray-900">${this.escapeHtml(group.ip_address || 'Unknown')}</span>`;
+
+      section.appendChild(heading);
+      section.appendChild(this.createGroupedTable(group.error_logs || []));
+
+      return section;
+    }
+
+    createGroupedTable(errorLogs) {
+      const tableWrapper = document.createElement('div');
+      tableWrapper.className = 'overflow-x-auto';
+
+      const table = document.createElement('table');
+      table.className = 'min-w-full';
+
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      ['Status', 'Exception', 'Message', 'Occurrences', 'Users Affected', 'Last Seen', 'GitHub Issue', ''].forEach(title => {
+        const th = document.createElement('th');
+        th.className = 'px-[var(--table-padding)] py-[var(--table-padding)] text-left text-sm font-medium text-[var(--table-header-text-color)]';
+        th.textContent = title;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+
+      const tbody = document.createElement('tbody');
+      errorLogs.forEach(errorLog => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-[var(--table-row-hover-background-color)] transition-colors duration-fast';
+        tbody.appendChild(this.createGroupedIpRow(row, errorLog));
+      });
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+
+      return tableWrapper;
+    }
+
+    escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    getViewLinkHtml(dashboardPath) {
+      return `<a href="${dashboardPath}" class="inline-flex items-center justify-center gap-2 rounded-[var(--button-border-radius)] font-medium cursor-pointer transition-colors duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--button-focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--button-focus-ring-offset-color)] disabled:pointer-events-none disabled:opacity-[var(--button-disabled-opacity)] px-[var(--button-padding-x-sm)] py-[var(--button-padding-y-sm)] text-xs bg-[var(--button-ghost-background-color)] hover:bg-[var(--button-ghost-hover-background-color)] text-[var(--button-ghost-text-color)] border border-[var(--button-ghost-border-color)]">View</a>`;
     }
 
     getStatusBadge(status) {
@@ -206,13 +332,32 @@
         this.loadingIndicator.classList.add('hidden');
       }
     }
+
+    destroy() {
+      if (this.observer) {
+        this.observer.disconnect();
+      }
+    }
   }
 
-  // Initialize infinite scroll when DOM is ready
-  document.addEventListener('DOMContentLoaded', function () {
+  function initializeInfiniteScroll() {
     const container = document.getElementById('error-logs-container');
     if (container) {
-      new InfiniteScroll(container);
+      if (container._infiniteScroll) {
+        container._infiniteScroll.destroy();
+      }
+
+      container._infiniteScroll = new InfiniteScroll(container);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', initializeInfiniteScroll);
+  document.addEventListener('turbo:load', initializeInfiniteScroll);
+  document.addEventListener('turbo:before-cache', function () {
+    const container = document.getElementById('error-logs-container');
+    if (container && container._infiniteScroll) {
+      container._infiniteScroll.destroy();
+      delete container._infiniteScroll;
     }
   });
 })();
