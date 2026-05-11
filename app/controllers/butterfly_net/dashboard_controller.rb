@@ -7,7 +7,7 @@ module ButterflyNet
   # Provides index (list of errors) and show (error details) actions.
   class DashboardController < ApplicationController
     def index
-      @pagy, @error_logs = pagy(ErrorLog.recent.includes(:occurrences), limit: 25)
+      @pagy, @error_logs = pagy(ErrorLog.recent_by_last_seen.includes(:occurrences), limit: 25)
 
       respond_to do |format|
         format.html
@@ -26,6 +26,7 @@ module ButterflyNet
 
     def show
       @error_log = ErrorLog.find(params[:id])
+      @latest_occurrence = @error_log.occurrences.recent.first
       @github_configured = ButterflyNet.configuration.github_configured?
       @bowerbird_target_repos = @error_log.bowerbird_repos_from_backtrace
     end

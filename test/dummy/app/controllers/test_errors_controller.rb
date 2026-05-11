@@ -33,15 +33,19 @@ class TestErrorsController < ApplicationController
     rescue RuntimeError => error
       ButterflyNet.error(
         error,
-        request_id: request.request_id,
-        scenario: "handled_runtime_error"
+        request_params: {
+          params: {
+            request_id: request.request_id,
+            scenario: "handled_runtime_error"
+          }
+        }
       )
       render plain: "Handled and logged"
     end
   end
 
   def unhandled_runtime_error
-    raise RuntimeError, "Something handled but important went wrong"
+    raise RuntimeError, "Something unhandled but important went wrong"
   end
 
   def success

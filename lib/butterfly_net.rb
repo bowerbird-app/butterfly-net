@@ -13,6 +13,18 @@ module ButterflyNet
       report_error(error_or_message, context: context, metadata: metadata)
     end
 
+    def current_request_env
+      Thread.current[:butterfly_net_current_request_env]
+    end
+
+    def with_current_request_env(env)
+      previous_env = current_request_env
+      Thread.current[:butterfly_net_current_request_env] = env
+      yield
+    ensure
+      Thread.current[:butterfly_net_current_request_env] = previous_env
+    end
+
     # Captures an exception with its environment context.
     # This is called by the middleware when an exception is caught.
     # @param exception [Exception] The exception that was raised
@@ -104,13 +116,27 @@ module ButterflyNet
     end
 
     def build_request_params(context, metadata, explicit_request_params)
-      payload = explicit_request_params.is_a?(Hash) ? explicit_request_params.deep_dup : {}
+      payload = default_request_params
+      payload = merge_request_params(payload, explicit_request_params.deep_dup) if explicit_request_params.is_a?(Hash)
       payload[:context] = context unless context.nil?
 
       structured_metadata = metadata.except(:error, :message, :request_params)
       payload[:metadata] = structured_metadata if structured_metadata.present?
 
       payload.presence
+    end
+
+    def default_request_params
+      env = current_request_env
+      return {} unless env.is_a?(Hash)
+
+      ButterflyNet::Middleware::ExceptionCatcher.extract_request_params(env)
+    rescue StandardError
+      {}
+    end
+
+    def merge_request_params(base_payload, explicit_payload)
+      base_payload.deep_merge(explicit_payload)
     end
 
     def mutex

@@ -1,5 +1,10 @@
 <% content_for :page_title, "Error Details" %>
 
+<% displayed_occurrence = @latest_occurrence %>
+<% displayed_at = displayed_occurrence&.created_at || @error_log.created_at %>
+<% params_hash = displayed_occurrence&.params_hash.presence || @error_log.params_hash %>
+<% user_agent = displayed_occurrence&.user_agent.presence || @error_log.user_agent %>
+
 <%= render FlatPack::PageHeader::Component.new(title: "Error Details") %>
 
 <%= render FlatPack::Breadcrumb::Component.new(separator: :chevron) do |breadcrumb| %>
@@ -35,7 +40,7 @@
               </div>
               <div class="sm:col-span-2">
                 <dt class="text-sm font-medium text-gray-500">Occurred At</dt>
-                <dd class="mt-1 text-lg font-semibold tracking-tight text-gray-900"><%= @error_log.created_at.strftime("%Y-%m-%d %H:%M:%S %Z") %></dd>
+                <dd class="mt-1 text-lg font-semibold tracking-tight text-gray-900"><%= displayed_at.strftime("%Y-%m-%d %H:%M:%S %Z") %></dd>
               </div>
             </dl>
           <% end %>
@@ -127,7 +132,6 @@
           <% end %>
           <% card.body do %>
             <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              <% params_hash = @error_log.params_hash %>
               <div>
                 <dt class="text-sm font-medium text-gray-500">Path</dt>
                 <dd class="mt-1 text-sm text-gray-900"><%= params_hash["path"] || params_hash[:path] || "N/A" %></dd>
@@ -142,7 +146,7 @@
               </div>
               <div class="sm:col-span-2">
                 <dt class="text-sm font-medium text-gray-500">User Agent</dt>
-                <dd class="mt-1 text-sm text-gray-900 break-words"><%= @error_log.user_agent || "N/A" %></dd>
+                <dd class="mt-1 text-sm text-gray-900 break-words"><%= user_agent || "N/A" %></dd>
               </div>
               <div class="sm:col-span-2">
                 <dt class="text-sm font-medium text-gray-500">Parameters</dt>

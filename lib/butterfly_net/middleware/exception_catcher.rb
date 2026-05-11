@@ -32,6 +32,10 @@ module ButterflyNet
           handler = new(nil)
           handler.capture_and_persist(exception, env)
         end
+
+        def extract_request_params(env)
+          new(nil).send(:extract_request_params, env)
+        end
       end
 
       def initialize(app)
@@ -39,7 +43,9 @@ module ButterflyNet
       end
 
       def call(env)
-        @app.call(env)
+        ButterflyNet.with_current_request_env(env) do
+          @app.call(env)
+        end
       rescue Exception => exception # rubocop:disable Lint/RescueException
         # Only handle if not already handled by interceptor
         unless env["butterfly_net.exception_handled"]

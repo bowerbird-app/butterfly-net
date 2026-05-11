@@ -60,7 +60,7 @@ class ButterflyNetTest < ActiveSupport::TestCase
     ButterflyNet.clear_captured_exceptions
 
     exception = RuntimeError.new("Handled failure")
-    exception.set_backtrace(["app/services/worker.rb:10:in `perform'"])
+    exception.set_backtrace([ "app/services/worker.rb:10:in `perform'" ])
 
     ButterflyNet.error(exception, 123)
 
@@ -102,7 +102,7 @@ class ButterflyNetTest < ActiveSupport::TestCase
     ButterflyNet.clear_captured_exceptions
 
     original = StandardError.new("timeout while fetching")
-    original.set_backtrace(["app/services/transcriber.rb:42:in `call'"])
+    original.set_backtrace([ "app/services/transcriber.rb:42:in `call'" ])
 
     ButterflyNet.error(
       "Aircall transcription fetch error: #{original.message}",
@@ -127,6 +127,36 @@ class ButterflyNetTest < ActiveSupport::TestCase
       },
       error_log.request_params
     )
+  end
+
+  test "error merges request details from current request env" do
+    ButterflyNet.clear_captured_exceptions
+
+    env = {
+      "PATH_INFO" => "/orders/42",
+      "REQUEST_METHOD" => "POST",
+      "QUERY_STRING" => "tab=activity&id=42",
+      "rack.input" => StringIO.new,
+      "CONTENT_TYPE" => "application/x-www-form-urlencoded"
+    }
+
+    ButterflyNet.with_current_request_env(env) do
+      ButterflyNet.error(
+        StandardError.new("Request-scoped failure"),
+        request_params: {
+          params: {
+            scenario: "manual_log"
+          }
+        }
+      )
+    end
+
+    error_log = ButterflyNet::ErrorLog.last
+    assert_equal "/orders/42", error_log.request_params["path"]
+    assert_equal "POST", error_log.request_params["method"]
+    assert_equal "tab=activity&id=42", error_log.request_params["query_string"]
+    assert_equal "42", error_log.request_params["params"]["id"]
+    assert_equal "manual_log", error_log.request_params["params"]["scenario"]
   end
 end
 
