@@ -20,7 +20,7 @@ namespace :butterfly_net do
       output_file = File.join(gem_root, "app/assets/stylesheets/butterfly_net/application.css")
 
       puts "Building ButterflyNet Tailwind CSS..."
-      Tempfile.create(["butterfly_net_tailwind", ".css"], File.dirname(input_file)) do |resolved_input|
+      Tempfile.create([ "butterfly_net_tailwind", ".css" ], File.dirname(input_file)) do |resolved_input|
         resolved_input.write(resolved_tailwind_input(input_file))
         resolved_input.flush
 
@@ -48,7 +48,7 @@ namespace :butterfly_net do
 
       puts "Watching ButterflyNet Tailwind CSS for changes..."
 
-      Tempfile.create(["butterfly_net_tailwind", ".css"], File.dirname(input_file)) do |resolved_input|
+      Tempfile.create([ "butterfly_net_tailwind", ".css" ], File.dirname(input_file)) do |resolved_input|
         resolved_input.write(resolved_tailwind_input(input_file))
         resolved_input.flush
 
