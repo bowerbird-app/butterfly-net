@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-12
+
+### Added
+- Added explicit rescued error reporting via `ButterflyNet.error(...)`
+
+### Changed
+- Bumped the gem version to `0.7.0`
+
 ## [0.6.3] - 2026-04-29
 
 ### Changed
@@ -135,7 +143,8 @@ This will:
 
 See git history for changes in versions prior to 0.3.0.
 
-[Unreleased]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.6.3...v0.7.0
 [0.6.3]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.6.1...v0.6.3
 [0.6.0]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/bowerbird-app/marco-butterfly-net/compare/v0.4.0...v0.5.0

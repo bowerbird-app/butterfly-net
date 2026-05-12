@@ -25,7 +25,7 @@ ButterflyNet is a self-hosted error tracking dashboard for Rails applications. I
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "butterfly_net", "~> 0.6.3"
+gem "butterfly_net", "~> 0.7.0"
 ```
 
 And then execute:
