@@ -30,6 +30,17 @@ module ButterflyNet
     # Scope for recent errors
     scope :recent, -> { order(created_at: :desc) }
 
+    # Scope for ordering by the most recent occurrence, falling back to the
+    # error log creation time when no occurrences exist yet.
+    scope :recent_by_last_seen, -> {
+      latest_occurrence_subquery = ButterflyNet::ErrorOccurrence
+        .select("error_log_id, MAX(created_at) AS last_seen_at")
+        .group(:error_log_id)
+
+      joins("LEFT JOIN (#{latest_occurrence_subquery.to_sql}) latest_occurrences ON latest_occurrences.error_log_id = butterfly_net_error_logs.id")
+        .order(Arel.sql("COALESCE(latest_occurrences.last_seen_at, butterfly_net_error_logs.created_at) DESC"))
+    }
+
     # Scope for filtering by exception class
     scope :by_exception_class, ->(klass) { where(exception_class: klass) }
 

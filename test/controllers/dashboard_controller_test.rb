@@ -84,6 +84,37 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_match /Error0/, response.body
   end
 
+  test "index orders errors by latest occurrence" do
+    older_error = nil
+    newer_error = nil
+
+    travel_to(Time.zone.parse("2026-05-11 04:00:00 UTC")) do
+      older_error = ButterflyNet::ErrorLog.create!(
+        exception_class: "OlderError",
+        message: "Older message"
+      )
+    end
+
+    travel_to(Time.zone.parse("2026-05-11 04:10:00 UTC")) do
+      newer_error = ButterflyNet::ErrorLog.create!(
+        exception_class: "NewerError",
+        message: "Newer message"
+      )
+    end
+
+    travel_to(Time.zone.parse("2026-05-11 04:20:00 UTC")) do
+      older_error.record_occurrence
+    end
+
+    get butterfly_net.dashboard_index_path, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    ordered_ids = json_response["error_logs"].map { |entry| entry["id"] }
+
+    assert_equal [ older_error.id, newer_error.id ], ordered_ids.first(2)
+  end
+
   test "show displays error details" do
     error_log = ButterflyNet::ErrorLog.create!(
       exception_class: "NoMethodError",
@@ -153,6 +184,39 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_match /198.51.100.25/, response.body
     assert_match /No route matches \/missing/, response.body
     assert_match /No route matches \/other/, response.body
+  end
+
+  test "show prefers latest occurrence details" do
+    error_log = ButterflyNet::ErrorLog.create!(
+      exception_class: "RuntimeError",
+      message: "Test error",
+      request_params: { path: "/old", method: "POST", params: { scenario: "old" } },
+      user_agent: "Old Browser"
+    )
+
+    travel_to(Time.zone.parse("2026-05-11 05:00:00 UTC")) do
+      error_log.record_occurrence(
+        request_params: {
+          path: "/latest",
+          method: "GET",
+          query_string: "source=test",
+          params: { scenario: "latest" }
+        },
+        user_agent: "Latest Browser"
+      )
+    end
+
+    get butterfly_net.dashboard_path(error_log)
+
+    assert_response :success
+    assert_match /2026-05-11 05:00:00 UTC/, response.body
+    assert_match %r{>\s*/latest\s*<}, response.body
+    assert_match %r{>\s*GET\s*<}, response.body
+    assert_match /source=test/, response.body
+    assert_match /Latest Browser/, response.body
+    assert_match /&quot;scenario&quot;: &quot;latest&quot;/, response.body
+    assert_no_match %r{>\s*/old\s*<}, response.body
+    assert_no_match /Old Browser/, response.body
   end
 
   test "root redirects to dashboard index" do
@@ -433,8 +497,8 @@ class ButterflyNet::DashboardControllerTest < ActionDispatch::IntegrationTest
     get butterfly_net.dashboard_path(error_log)
 
     assert_response :success
-    # Should have create issue button when configured
-    assert_select "a[href=?]", butterfly_net.create_issue_dashboard_path(error_log)
+    # Should have create issue form button when configured
+    assert_select "form[action=?]", butterfly_net.create_issue_dashboard_path(error_log)
   ensure
     ButterflyNet.reset_configuration!
   end

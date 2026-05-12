@@ -41,6 +41,7 @@ module ButterflyNet
 
     def show
       @error_log = ErrorLog.find(params[:id])
+      @latest_occurrence = @error_log.occurrences.recent.first
       @github_configured = ButterflyNet.configuration.github_configured?
       @bowerbird_target_repos = @error_log.bowerbird_repos_from_backtrace
     end
@@ -260,7 +261,7 @@ module ButterflyNet
     def grouped_error_logs
       return grouped_error_logs_by_ip if @group_by == GROUP_BY_IP
 
-      pagy(ErrorLog.by_exception_class(@exception_class).recent.includes(:occurrences), limit: 25)
+      pagy(ErrorLog.by_exception_class(@exception_class).recent_by_last_seen.includes(:occurrences), limit: 25)
     end
 
     def grouped_error_logs_json

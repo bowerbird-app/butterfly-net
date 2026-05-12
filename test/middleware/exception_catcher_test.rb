@@ -239,6 +239,30 @@ class ButterflyNet::Middleware::ExceptionCatcherTest < ActiveSupport::TestCase
     assert_includes error_log.backtrace, "line1"
   end
 
+  test "capture_and_persist sends unhandled errors through shared reporter" do
+    middleware = ButterflyNet::Middleware::ExceptionCatcher.new(nil)
+    exception = StandardError.new("Unhandled error")
+    env = {
+      "REQUEST_METHOD" => "GET",
+      "PATH_INFO" => "/reports",
+      "QUERY_STRING" => "token=secret&visible=true",
+      "HTTP_USER_AGENT" => "TestAgent/2.0",
+      "rack.input" => StringIO.new
+    }
+
+    middleware.capture_and_persist(exception, env)
+
+    captured = ButterflyNet.captured_exceptions.last
+    assert_equal exception, captured[:exception]
+    assert_equal env, captured[:env]
+
+    error_log = ButterflyNet::ErrorLog.last
+    assert_equal "/reports", error_log.request_params["path"]
+    assert_equal "GET", error_log.request_params["method"]
+    assert_includes error_log.request_params["query_string"], "token=[FILTERED]"
+    assert_equal "TestAgent/2.0", error_log.user_agent
+  end
+
   test "persist_exception handles database errors gracefully" do
     middleware = ButterflyNet::Middleware::ExceptionCatcher.new(nil)
 

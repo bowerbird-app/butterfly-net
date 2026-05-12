@@ -21,6 +21,10 @@ class ButterflyNetTest < ActiveSupport::TestCase
     assert_respond_to ButterflyNet, :capture_exception
   end
 
+  test "module has error method" do
+    assert_respond_to ButterflyNet, :error
+  end
+
   test "module has clear_captured_exceptions method" do
     assert_respond_to ButterflyNet, :clear_captured_exceptions
   end
@@ -50,6 +54,109 @@ class ButterflyNetTest < ActiveSupport::TestCase
 
     ButterflyNet.clear_captured_exceptions
     assert_empty ButterflyNet.captured_exceptions
+  end
+
+  test "error reports rescued exception through shared pipeline" do
+    ButterflyNet.clear_captured_exceptions
+
+    exception = RuntimeError.new("Handled failure")
+    exception.set_backtrace([ "app/services/worker.rb:10:in `perform'" ])
+
+    ButterflyNet.error(exception, 123)
+
+    captured = ButterflyNet.captured_exceptions.last
+    assert_equal exception, captured[:exception]
+    assert_equal({}, captured[:env])
+
+    error_log = ButterflyNet::ErrorLog.last
+    assert_equal "RuntimeError", error_log.exception_class
+    assert_equal "Handled failure", error_log.message
+    assert_equal({ "context" => 123 }, error_log.request_params)
+    assert_includes error_log.backtrace, "app/services/worker.rb:10"
+  end
+
+  test "error reports message with structured metadata" do
+    ButterflyNet.clear_captured_exceptions
+
+    ButterflyNet.error("Aircall transcription fetch error", aircall_id: "ac-123", job: "transcription")
+
+    captured = ButterflyNet.captured_exceptions.last
+    assert_equal StandardError, captured[:exception].class
+    assert_equal "Aircall transcription fetch error", captured[:exception].message
+
+    error_log = ButterflyNet::ErrorLog.last
+    assert_equal "StandardError", error_log.exception_class
+    assert_equal "Aircall transcription fetch error", error_log.message
+    assert_equal(
+      {
+        "metadata" => {
+          "aircall_id" => "ac-123",
+          "job" => "transcription"
+        }
+      },
+      error_log.request_params
+    )
+  end
+
+  test "error reports message with embedded exception details" do
+    ButterflyNet.clear_captured_exceptions
+
+    original = StandardError.new("timeout while fetching")
+    original.set_backtrace([ "app/services/transcriber.rb:42:in `call'" ])
+
+    ButterflyNet.error(
+      "Aircall transcription fetch error: #{original.message}",
+      aircall_id: "meeting-42",
+      error: original
+    )
+
+    captured = ButterflyNet.captured_exceptions.last
+    assert_equal StandardError, captured[:exception].class
+    assert_equal "Aircall transcription fetch error: timeout while fetching", captured[:exception].message
+    assert_equal original.backtrace, captured[:exception].backtrace
+
+    error_log = ButterflyNet::ErrorLog.last
+    assert_equal "StandardError", error_log.exception_class
+    assert_equal "Aircall transcription fetch error: timeout while fetching", error_log.message
+    assert_includes error_log.backtrace, "app/services/transcriber.rb:42"
+    assert_equal(
+      {
+        "metadata" => {
+          "aircall_id" => "meeting-42"
+        }
+      },
+      error_log.request_params
+    )
+  end
+
+  test "error merges request details from current request env" do
+    ButterflyNet.clear_captured_exceptions
+
+    env = {
+      "PATH_INFO" => "/orders/42",
+      "REQUEST_METHOD" => "POST",
+      "QUERY_STRING" => "tab=activity&id=42",
+      "rack.input" => StringIO.new,
+      "CONTENT_TYPE" => "application/x-www-form-urlencoded"
+    }
+
+    ButterflyNet.with_current_request_env(env) do
+      ButterflyNet.error(
+        StandardError.new("Request-scoped failure"),
+        request_params: {
+          params: {
+            scenario: "manual_log"
+          }
+        }
+      )
+    end
+
+    error_log = ButterflyNet::ErrorLog.last
+    assert_equal "/orders/42", error_log.request_params["path"]
+    assert_equal "POST", error_log.request_params["method"]
+    assert_equal "tab=activity&id=42", error_log.request_params["query_string"]
+    assert_equal "42", error_log.request_params["params"]["id"]
+    assert_equal "manual_log", error_log.request_params["params"]["scenario"]
   end
 end
 
